@@ -12,6 +12,8 @@ export default defineConfig(() => {
       },
     },
     server: {
+      // Allow the v0 workspace preview domain (e.g. workspace-xxxx.v0.build).
+      allowedHosts: ['.v0.build'],
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
