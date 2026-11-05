@@ -185,6 +185,10 @@ class SpeechService {
       };
 
       this.recognition.onerror = (event: any) => {
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          // Mic permission denied: restarting would loop forever and freeze the page.
+          this.isListening = false;
+        }
         if (event.error !== 'no-speech') {
           console.warn('Speech recognition error:', event.error);
           this.onErrorCallback?.(event.error);
