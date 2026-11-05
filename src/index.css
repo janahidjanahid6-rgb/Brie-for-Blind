@@ -96,6 +96,277 @@
   animation: siri-ripple 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
 }
 
+/* Brie Green Ghost & Rainbow Sound Waves Animations */
+@keyframes ghost-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(1.5deg);
+  }
+}
+
+@keyframes ghost-bounce {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  25% {
+    transform: translateY(-3px) scale(1.04);
+  }
+  75% {
+    transform: translateY(1px) scale(0.98);
+  }
+}
+
+@keyframes talking-mouth {
+  0%, 100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.3) translateY(1px);
+  }
+}
+
+@keyframes rainbow-wave-shift {
+  0% {
+    filter: hue-rotate(0deg) drop-shadow(0 0 6px #00e5ff);
+  }
+  50% {
+    filter: hue-rotate(180deg) drop-shadow(0 0 10px #ec4899);
+  }
+  100% {
+    filter: hue-rotate(360deg) drop-shadow(0 0 6px #00e5ff);
+  }
+}
+
+@keyframes wave-motion-1 {
+  0%, 100% {
+    transform: scale(1) translateX(0px);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.2) translateX(-2px);
+    opacity: 1;
+  }
+}
+
+@keyframes wave-motion-2 {
+  0%, 100% {
+    transform: scale(1) translateX(0px);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.25) translateX(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes wave-motion-3 {
+  0%, 100% {
+    transform: scale(1) translateX(0px);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.35) translateX(-6px);
+    opacity: 1;
+  }
+}
+
+@keyframes wave-motion-r1 {
+  0%, 100% {
+    transform: scale(1) translateX(0px);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.2) translateX(2px);
+    opacity: 1;
+  }
+}
+
+@keyframes wave-motion-r2 {
+  0%, 100% {
+    transform: scale(1) translateX(0px);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.25) translateX(4px);
+    opacity: 1;
+  }
+}
+
+@keyframes wave-motion-r3 {
+  0%, 100% {
+    transform: scale(1) translateX(0px);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.35) translateX(6px);
+    opacity: 1;
+  }
+}
+
+.animate-ghost-float {
+  animation: ghost-float 3s ease-in-out infinite;
+}
+
+.animate-ghost-bounce {
+  animation: ghost-bounce 0.8s ease-in-out infinite;
+}
+
+.animate-talking-mouth {
+  animation: talking-mouth 0.35s ease-in-out infinite;
+}
+
+.animate-rainbow-pulse {
+  animation: rainbow-wave-shift 2.5s linear infinite;
+}
+
+.animate-wave-left-1 {
+  animation: wave-motion-1 0.7s ease-in-out infinite;
+}
+
+.animate-wave-left-2 {
+  animation: wave-motion-2 0.7s ease-in-out infinite 0.15s;
+}
+
+.animate-wave-left-3 {
+  animation: wave-motion-3 0.7s ease-in-out infinite 0.3s;
+}
+
+.animate-wave-right-1 {
+  animation: wave-motion-r1 0.7s ease-in-out infinite;
+}
+
+.animate-wave-right-2 {
+  animation: wave-motion-r2 0.7s ease-in-out infinite 0.15s;
+}
+
+.animate-wave-right-3 {
+  animation: wave-motion-r3 0.7s ease-in-out infinite 0.3s;
+}
+
+/* Speaking Green Ghost & Bouncing Sound Waves */
+@keyframes speaking-ghost-bounce {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  20% {
+    transform: translateY(-7px) scale(1.05) rotate(-1deg);
+  }
+  40% {
+    transform: translateY(1.5px) scale(0.98) rotate(1deg);
+  }
+  60% {
+    transform: translateY(-4px) scale(1.03) rotate(-0.5deg);
+  }
+  80% {
+    transform: translateY(0px) scale(0.99);
+  }
+}
+
+@keyframes speaking-wave-bounce-l {
+  0%, 100% {
+    transform: scale(1) translateX(0px);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.35) translateX(-6px);
+    opacity: 1;
+  }
+}
+
+@keyframes speaking-wave-bounce-r {
+  0%, 100% {
+    transform: scale(1) translateX(0px);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.35) translateX(6px);
+    opacity: 1;
+  }
+}
+
+.animate-speaking-ghost-bounce {
+  animation: speaking-ghost-bounce 0.85s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+.animate-speaking-wave-l1 {
+  animation: speaking-wave-bounce-l 0.55s ease-in-out infinite;
+}
+.animate-speaking-wave-l2 {
+  animation: speaking-wave-bounce-l 0.55s ease-in-out infinite 0.12s;
+}
+.animate-speaking-wave-l3 {
+  animation: speaking-wave-bounce-l 0.55s ease-in-out infinite 0.24s;
+}
+
+.animate-speaking-wave-r1 {
+  animation: speaking-wave-bounce-r 0.55s ease-in-out infinite;
+}
+.animate-speaking-wave-r2 {
+  animation: speaking-wave-bounce-r 0.55s ease-in-out infinite 0.12s;
+}
+.animate-speaking-wave-r3 {
+  animation: speaking-wave-bounce-r 0.55s ease-in-out infinite 0.24s;
+}
+
+/* Siri Multi-Layer Liquid Ribbon Waveforms */
+@keyframes siri-wave-undulate-1 {
+  0%, 100% {
+    transform: scaleY(1) translateY(0);
+  }
+  50% {
+    transform: scaleY(1.45) translateY(-3px);
+  }
+}
+
+@keyframes siri-wave-undulate-2 {
+  0%, 100% {
+    transform: scaleY(1) translateY(0);
+  }
+  50% {
+    transform: scaleY(1.55) translateY(4px);
+  }
+}
+
+@keyframes siri-wave-undulate-3 {
+  0%, 100% {
+    transform: scaleY(1) translateY(0);
+  }
+  50% {
+    transform: scaleY(1.35) translateY(-2px);
+  }
+}
+
+@keyframes siri-wave-undulate-4 {
+  0%, 100% {
+    transform: scaleY(1) translateY(0);
+  }
+  50% {
+    transform: scaleY(1.5) translateY(3px);
+  }
+}
+
+.animate-siri-wave-1 {
+  animation: siri-wave-undulate-1 1.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.animate-siri-wave-2 {
+  animation: siri-wave-undulate-2 0.95s ease-in-out infinite 0.2s;
+  transform-origin: center;
+}
+
+.animate-siri-wave-3 {
+  animation: siri-wave-undulate-3 1.4s ease-in-out infinite 0.1s;
+  transform-origin: center;
+}
+
+.animate-siri-wave-4 {
+  animation: siri-wave-undulate-4 1.1s ease-in-out infinite 0.3s;
+  transform-origin: center;
+}
+
 /* Custom High Contrast Utilities */
 .high-contrast-focus:focus-visible {
   outline: 4px solid #facc15 !important;

@@ -28,9 +28,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const speakGreeting = () => {
     sounds.playEarconStart();
     haptics.listeningStart();
-    setSpeechActive(true);
     speech.speak(firstLaunchGreeting, {
-      rate: speechRate || 1.05,
+      rate: speechRate || 1.0,
+      pitch: 1.0,
+      volume: 1.0,
       onEnd: () => {
         setSpeechActive(false);
         // Start listening immediately so the user can speak their name eyes-free
@@ -72,7 +73,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     const introStep2 = `Nice to meet you ${capitalized}! I love that name. Listen, you don't need to touch anything. This app has only two choices: ACTIVATE and DEACTIVATE. Just say ACTIVATE when you need me, or DEACTIVATE when you want me to leave your phone alone like a ghost. Say ACTIVATE or give me an order right now!`;
     setSpeechActive(true);
     speech.speak(introStep2, {
-      rate: speechRate || 1.1,
+      rate: speechRate || 1.0,
+      pitch: 1.0,
+      volume: 1.0,
       onEnd: () => {
         setSpeechActive(false);
         startChoiceListening(capitalized);
@@ -121,7 +124,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
     speech.speak(
       `Activated, ${nameToUse}! I am listening and ready to follow your orders. You never need to tap the screen.`,
-      { rate: speechRate || 1.15 }
+      { rate: speechRate || 1.0, pitch: 1.0, volume: 1.0 }
     );
 
     onSelectMode('blind');
@@ -141,7 +144,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
     speech.speak(
       `Deactivated, ${nameToUse}. Your phone is normal. Just say ACTIVATE or Hey Brie whenever you need me.`,
-      { rate: speechRate || 1.15 }
+      { rate: speechRate || 1.0, pitch: 1.0, volume: 1.0 }
     );
 
     onSelectMode('blind');
@@ -173,7 +176,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             } else {
               speech.speak(
                 `Listen ${userName || 'friend'}, there are only two choices: ACTIVATE and DEACTIVATE. You never need to tap the screen. Just command me aloud.`,
-                { rate: speechRate || 1.1 }
+                { rate: speechRate || 1.0, pitch: 1.0, volume: 1.0 }
               );
             }
           }}

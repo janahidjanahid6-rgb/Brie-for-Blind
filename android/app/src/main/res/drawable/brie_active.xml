@@ -1,24 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Glowing Green Active Indicator for Brie Voice Assistant -->
+<!-- Brie Friendly Neon Green Ghost with Sound Waves for Blind User -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="120dp"
     android:height="120dp"
-    android:viewportWidth="120"
-    android:viewportHeight="120">
-    <!-- Outer Glow Ring -->
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- App Icon Black Background with Rounded Corners -->
     <path
-        android:fillColor="#3310B981"
-        android:pathData="M60,60m-58,0a58,58 0,1 1,116 0a58,58 0,1 1,-116 0" />
-    <!-- Middle Emerald Ring -->
+        android:fillColor="#FF000000"
+        android:pathData="M24,4 L76,4 A20,20 0 0 1 96,24 L96,76 A20,20 0 0 1 76,96 L24,96 A20,20 0 0 1 4,76 L4,24 A20,20 0 0 1 24,4 Z" />
+
+    <!-- Left Sound Waves (Neon Green) -->
     <path
-        android:fillColor="#6610B981"
-        android:pathData="M60,60m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0" />
-    <!-- Core Bright Glowing Green Orb -->
+        android:strokeColor="#FF00FF88"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M27,38 A15,15 0 0 0 27,62" />
     <path
-        android:fillColor="#FF10B981"
-        android:pathData="M60,60m-34,0a34,34 0,1 1,68 0a34,34 0,1 1,-68 0" />
-    <!-- Bright Center Highlight -->
+        android:strokeColor="#FF00E5FF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M21,32 A22,22 0 0 0 21,68" />
     <path
-        android:fillColor="#FFD1FAE5"
-        android:pathData="M52,48m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" />
+        android:strokeColor="#FFD946EF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M15,26 A29,29 0 0 0 15,74" />
+
+    <!-- Right Sound Waves (Neon Rainbow / Green) -->
+    <path
+        android:strokeColor="#FF00FF88"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M73,38 A15,15 0 0 1 73,62" />
+    <path
+        android:strokeColor="#FFEC4899"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M79,32 A22,22 0 0 1 79,68" />
+    <path
+        android:strokeColor="#FFF59E0B"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M85,26 A29,29 0 0 1 85,74" />
+
+    <!-- Outer White-Green Glowing Outline -->
+    <path
+        android:strokeColor="#FFEAFFF5"
+        android:strokeWidth="4"
+        android:pathData="M50,18 C36,18 31,30 31,46 C31,58 30,70 27,75 C29,78 33,78 36,75 C40,71 43,73 45,76 C47,79 53,79 55,76 C57,73 60,71 64,75 C67,78 71,78 73,75 C70,70 69,58 69,46 C69,30 64,18 50,18 Z" />
+
+    <!-- Bright Neon Green Ghost Body -->
+    <path
+        android:fillColor="#FF00FF88"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.5"
+        android:pathData="M50,18 C36,18 31,30 31,46 C31,58 30,70 27,75 C29,78 33,78 36,75 C40,71 43,73 45,76 C47,79 53,79 55,76 C57,73 60,71 64,75 C67,78 71,78 73,75 C70,70 69,58 69,46 C69,30 64,18 50,18 Z" />
+
+    <!-- Big Shiny Black Eyes -->
+    <!-- Left Eye -->
+    <path
+        android:fillColor="#FF0A0A0A"
+        android:pathData="M42,34 A4.8,6 0 1 1 42,46 A4.8,6 0 1 1 42,34 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M40.5,36 A2.1,2.1 0 1 1 40.5,40.2 A2.1,2.1 0 1 1 40.5,36 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M44.2,41.4 A1.1,1.1 0 1 1 44.2,43.6 A1.1,1.1 0 1 1 44.2,41.4 Z" />
+
+    <!-- Right Eye -->
+    <path
+        android:fillColor="#FF0A0A0A"
+        android:pathData="M58,34 A4.8,6 0 1 1 58,46 A4.8,6 0 1 1 58,34 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M56.5,36 A2.1,2.1 0 1 1 56.5,40.2 A2.1,2.1 0 1 1 56.5,36 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M60.2,41.4 A1.1,1.1 0 1 1 60.2,43.6 A1.1,1.1 0 1 1 60.2,41.4 Z" />
+
+    <!-- Wide Happy Laughing Open Mouth -->
+    <path
+        android:fillColor="#FF121212"
+        android:pathData="M43,51 Q50,49.5 57,51 Q58,61 50,62 Q42,61 43,51 Z" />
+    <!-- Tongue -->
+    <path
+        android:fillColor="#FFFF3366"
+        android:pathData="M46,57 Q50,54.5 54,57 Q53,61.2 50,61.5 Q47,61.2 46,57 Z" />
+
+    <!-- Rosy Cheeks -->
+    <path
+        android:fillColor="#44FF8DA1"
+        android:pathData="M37,45.5 A2.5,1.5 0 1 1 37,48.5 A2.5,1.5 0 1 1 37,45.5 Z" />
+    <path
+        android:fillColor="#44FF8DA1"
+        android:pathData="M63,45.5 A2.5,1.5 0 1 1 63,48.5 A2.5,1.5 0 1 1 63,45.5 Z" />
+
 </vector>

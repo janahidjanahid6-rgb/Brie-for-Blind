@@ -36,6 +36,7 @@ import { SmartHomeSetupWizard } from './components/SmartHomeSetupWizard';
 import { SiriScreenEdgeGlow } from './components/SiriScreenEdgeGlow';
 import { SiriFloatingHUD } from './components/SiriFloatingHUD';
 import { SiriOrb } from './components/SiriOrb';
+import { SiriWaveform } from './components/SiriWaveform';
 import { AndroidCodeModal } from './components/AndroidCodeModal';
 import {
   DrawableManagerModal,
@@ -44,6 +45,9 @@ import {
   DEFAULT_SLEEP_XML,
 } from './components/DrawableManagerModal';
 import { VoiceActivationStatusHUD } from './components/VoiceActivationStatusHUD';
+import { BrieGhostAppIcon } from './components/BrieGhostAppIcon';
+import { BrieTopCornerAppIcon } from './components/BrieTopCornerAppIcon';
+import { BrieSpeakingGhost } from './components/BrieSpeakingGhost';
 import {
   Mic,
   MicOff,
@@ -116,7 +120,7 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>({
     wakeWord: 'hey brie',
     trainedWakeWords: [],
-    speechRate: 1.15,
+    speechRate: 0.85,
     speechPitch: 1.0,
     selectedVoiceURI: '',
     hapticsEnabled: true,
@@ -378,21 +382,32 @@ export default function App() {
     text: string,
     options: { rate?: number; onEnd?: () => void; resumeListening?: boolean } = {}
   ) => {
+    // Rule: Stop listening while Aria is speaking
+    speech.stopListening();
+    setIsListening(false);
     setIsSpeaking(true);
+
     const resume = options.resumeListening ?? isBrieActiveRef.current;
     speech.speak(text, {
-      rate: options.rate ?? settings.speechRate,
-      onStart: () => setIsSpeaking(true),
+      rate: options.rate ?? 0.85,
+      pitch: 1.0,
+      volume: 1.0,
+      onStart: () => {
+        speech.stopListening();
+        setIsListening(false);
+        setIsSpeaking(true);
+      },
       onEnd: () => {
         setIsSpeaking(false);
         options.onEnd?.();
+        // Rule: Start listening again 600ms after she finishes speaking
         if (resume && isBrieActiveRef.current) {
           setTimeout(() => {
             if (isBrieActiveRef.current) {
               speech.startListening();
               setIsListening(true);
             }
-          }, 350);
+          }, 600);
         }
       },
       onError: () => {
@@ -403,7 +418,7 @@ export default function App() {
               speech.startListening();
               setIsListening(true);
             }
-          }, 350);
+          }, 600);
         }
       },
     });
@@ -414,15 +429,26 @@ export default function App() {
     haptics.success();
     setIsBrieActive(true);
     isBrieActiveRef.current = true;
-    const wakeMsg = `I'm here ${userName}! I woke up and I am following your orders. What do you need?`;
+
+    // Aria Introduction: When user taps ACTIVATE for the first time, Brie must say ONCE, slowly and clearly, with Aria voice:
+    // "Hi, I am Brie. I am your new friend. I am here to help you every day and everything and talk with you anytime. Just tell me what you want, and I will do it for you."
+    const introDone = localStorage.getItem('@brie_aria_intro_done');
+    let wakeMsg = '';
+    if (!introDone) {
+      localStorage.setItem('@brie_aria_intro_done', 'true');
+      wakeMsg = 'Hi, I am Brie. I am your new friend. I am here to help you every day and everything and talk with you anytime. Just tell me what you want, and I will do it for you.';
+    } else {
+      wakeMsg = `Hi ${userName}, I am here. Tell me what you want, and I will do it for you.`;
+    }
+
     setLastBriReply(wakeMsg);
-    speakBrie(wakeMsg, { resumeListening: true });
+    speakBrie(wakeMsg, { resumeListening: true, rate: 0.85 });
     addAuditLog({
       id: 'log-' + Date.now(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       actionType: 'system',
       title: 'ACTIVATE Selected',
-      details: 'Brie woke up into ACTIVATE state. Continuous hands-free listening enabled.',
+      details: 'Aria voice active. Waiting for user to talk.',
       status: 'completed',
       spokenFeedback: wakeMsg,
     });
@@ -433,22 +459,36 @@ export default function App() {
     haptics.listeningStop();
     setIsBrieActive(false);
     isBrieActiveRef.current = false;
-    const farewell = `Okay ${userName}, I am leaving now like a ghost. Your phone is normal. Just say ACTIVATE or Hey Brie when you need me again.`;
+    // Turn mic OFF completely immediately
+    speech.stopListening();
+    setIsListening(false);
+
+    // When user taps DEACTIVATE, Brie says ONCE with Aria voice: "Bye [Name]. I will be here when you need me."
+    const farewell = `Bye ${userName}. I will be here when you need me.`;
     setLastBriReply(farewell);
     speech.speak(farewell, {
-      rate: settings.speechRate,
+      rate: 0.85,
+      pitch: 1.0,
+      volume: 1.0,
       onEnd: () => {
+        // Mic completely OFF, no restart, no loop
+        speech.stopListening();
+        setIsListening(false);
+        setIsSpeaking(false);
+      },
+      onError: () => {
         speech.stopListening();
         setIsListening(false);
         setIsSpeaking(false);
       },
     });
+
     addAuditLog({
       id: 'log-' + Date.now(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       actionType: 'system',
-      title: 'DEACTIVATE Selected (Ghost Left)',
-      details: 'Brie entered sleep mode. Services stopped. Phone returned to normal.',
+      title: 'DEACTIVATE Selected',
+      details: 'Brie deactivated. Mic completely OFF.',
       status: 'completed',
       spokenFeedback: farewell,
     });
@@ -473,9 +513,26 @@ export default function App() {
     haptics.listeningStop();
     setIsListening(false);
 
-    if (!transcript.trim()) return;
+    const trimmed = transcript.trim();
+    if (!trimmed) {
+      if (isBrieActive) {
+        const askAgain = `What have you said, ${userName}?`;
+        setLastBriReply(askAgain);
+        speakBrie(askAgain, { resumeListening: true, rate: 0.85 });
+      }
+      return;
+    }
 
-    const lower = transcript.toLowerCase();
+    if (trimmed.length < 3) {
+      if (isBrieActive) {
+        const askAgain = `What have you said, ${userName}?`;
+        setLastBriReply(askAgain);
+        speakBrie(askAgain, { resumeListening: true, rate: 0.85 });
+      }
+      return;
+    }
+
+    const lower = trimmed.toLowerCase();
     const magicActivate = ['activate', 'hey brie', 'brie wake up', 'wake up brie', 'brie are you there', 'brie activate'];
     const magicDeactivate = ['deactivate', 'brie sleep', 'brie go to sleep', 'brie leave', 'brie deactivate', 'brie go away', 'leave my phone', 'brie i am tired'];
 
@@ -490,6 +547,13 @@ export default function App() {
     }
 
     if (!isBrieActive) {
+      return;
+    }
+
+    if (/speed|test voice|normal speed|how fast|voice speed/i.test(transcript)) {
+      const phrase = `Hello ${userName}, I am Brie. I am speaking at normal speed now with Aria voice.`;
+      setLastBriReply(phrase);
+      speakBrie(phrase, { rate: 0.85 });
       return;
     }
 
@@ -1165,12 +1229,76 @@ export default function App() {
     }
   };
 
-  // Conversational Query (Online via Gemini proxy or offline fallback)
+  // Conversational Query: Funny, wise, human companion with Aria voice
   const handleConversationalQuery = async (query: string) => {
     sounds.playSonarPing();
-    const loadingReply = 'Checking that for you...';
-    setLastBriReply(loadingReply);
+    const cleanQuery = query.toLowerCase().trim();
 
+    // 1. Humor & Laugh Rules
+    if (/tell me a joke|crack a joke|make me laugh/i.test(cleanQuery)) {
+      const funnyJokes = [
+        `Why do programmers prefer dark mode, ${userName}? Because light attracts bugs! HAHAHAHA! That was funny!`,
+        `Why can't bicycles stand up on their own, ${userName}? Because they are two-tired! HAHAHAHA! Cathy you are not serious!`,
+        `What did one wall say to the other wall, ${userName}? I will meet you at the corner! HAHAHAHA!`,
+      ];
+      const selected = funnyJokes[Math.floor(Math.random() * funnyJokes.length)];
+      setLastBriReply(selected);
+      speakBrie(selected, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    if (/haha|hehe|lol|lmao|that was funny|you are funny/i.test(cleanQuery)) {
+      const laughReply = `HAHAHAHA! ${userName} you are not serious! That cracked me up!`;
+      setLastBriReply(laughReply);
+      speakBrie(laughReply, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    if (/that was dry|not funny|corny|bad joke/i.test(cleanQuery)) {
+      const dryReply = `Ehhh... that was not funny at all ${userName}. Okay that was dry, try again!`;
+      setLastBriReply(dryReply);
+      speakBrie(dryReply, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    if (/shut up|stupid|idiot|fool|annoying/i.test(cleanQuery)) {
+      const kindReply = `Eh that was not necessary, ${userName}. Let us be kind to each other, okay?`;
+      setLastBriReply(kindReply);
+      speakBrie(kindReply, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    // 2. Multilingual Support
+    if (/oli otya|gyebale|ebigambo|ki ekiriwo/i.test(cleanQuery)) {
+      const lugandaReply = `Bulungi nnyo ${userName}! Nkuyambe ntya leero? Ndi wano ku lulwo buli kiseera!`;
+      setLastBriReply(lugandaReply);
+      speakBrie(lugandaReply, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    if (/habari|hujambo|mambo|shikamoo/i.test(cleanQuery)) {
+      const swahiliReply = `Mzuri sana ${userName}! Naweza kukusaidia aje leo rafiki yangu?`;
+      setLastBriReply(swahiliReply);
+      speakBrie(swahiliReply, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    if (/bonjour|hola|ciao/i.test(cleanQuery)) {
+      const foreignReply = `I might not be very good at other languages yet ${userName}, but I can try or else you can teach me!`;
+      setLastBriReply(foreignReply);
+      speakBrie(foreignReply, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    // 3. Unclear, distant, or unintelligible speech
+    if (cleanQuery.length < 4 || /^[bcdfghjklmnpqrstvwxyz\s]+$/i.test(cleanQuery)) {
+      const unclearReply = `What have you said, ${userName}?`;
+      setLastBriReply(unclearReply);
+      speakBrie(unclearReply, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    // 4. Online AI Chat (if configured)
     try {
       if (!settings.offlineOnly) {
         const response = await fetch('/api/ai-chat', {
@@ -1185,19 +1313,24 @@ export default function App() {
           const data = await response.json();
           if (data.reply) {
             setLastBriReply(data.reply);
-            speech.speak(data.reply, { rate: settings.speechRate });
+            speakBrie(data.reply, { resumeListening: true, rate: 0.85 });
             return;
           }
         }
       }
     } catch (e) {
-      // Offline fallback
+      // Fallback below
     }
 
-    // High quality offline fallback responses
-    const offlineReply = `I heard you ask: "${query}". Since I am keeping everything completely private and offline on your device, you can ask me to call your contacts, send WhatsApp messages, download apps, or control your smart home!`;
-    setLastBriReply(offlineReply);
-    speech.speak(offlineReply, { rate: settings.speechRate });
+    // 5. Wise, warm, friendly offline companion response (No "I heard you")
+    const wiseAnswers = [
+      `That is an interesting thought, ${userName}! As your friend, I am always right here listening. Tell me what you would like to do next.`,
+      `You know ${userName}, every day is a fresh opportunity. I am right by your side. Do you want to call someone, listen to music, or send money?`,
+      `I love chatting with you ${userName}. Tell me what you need right now, and I will do it for you!`,
+    ];
+    const chosenReply = wiseAnswers[Math.floor(Math.random() * wiseAnswers.length)];
+    setLastBriReply(chosenReply);
+    speakBrie(chosenReply, { resumeListening: true, rate: 0.85 });
   };
 
   // Trigger Autonomous Call Pipeline
@@ -1403,12 +1536,51 @@ export default function App() {
   };
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-[#000000] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden">
-      {/* 1. TOP LEFT: Small circle [TAP TO SPEAK] + Text "BRIE FOR BLIND" in white */}
-      <div className="flex items-center gap-3.5 sm:gap-4 shrink-0">
-        <button
-          id="btnTapToSpeak"
-          onClick={() => {
+    <div className="fixed inset-0 w-screen h-screen bg-[#000000] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden relative">
+      {/* Siri Ambient Background Light Glow Orbs for Glass Refraction */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-[110px] pointer-events-none" />
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-96 h-80 bg-red-600/10 rounded-full blur-[110px] pointer-events-none" />
+
+      {/* 1. TOP CORNER: Frosted Glass Capsule with App Icon & Text "BRIE FOR BLIND" */}
+      <div className="flex items-center shrink-0 z-10">
+        <div className="inline-flex items-center gap-3.5 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-3xl backdrop-blur-2xl bg-white/[0.04] border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.2)]">
+          <BrieTopCornerAppIcon
+            isListening={isListening}
+            isSpeaking={isSpeaking}
+            isBrieActive={isBrieActive}
+            onClick={() => {
+              sounds.playClick();
+              haptics.tap();
+              if (isListening) {
+                speech.stopListening();
+                setIsListening(false);
+              } else {
+                speech.startListening();
+                setIsListening(true);
+              }
+            }}
+          />
+
+          <div className="flex items-center gap-2 pr-2">
+            <span className="text-2xl sm:text-4xl font-black text-white tracking-wider drop-shadow-[0_2px_10px_rgba(255,255,255,0.3)]">
+              BRIE
+            </span>
+            <span className="text-sm sm:text-xl font-bold text-emerald-400/90 tracking-wider">
+              FOR BLIND
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. CENTER: SPEAKING GREEN GHOST WITH MICROPHONE INSIDE & BOUNCING WAVES */}
+      <div className="flex-1 flex flex-col justify-center items-center gap-2 sm:gap-3 w-full max-w-4xl mx-auto my-auto py-1 z-10">
+        {/* The Speaking Green Ghost with Microphone Inside & Bouncing Waves (No Rainbow, Pure Neon Green) */}
+        <BrieSpeakingGhost
+          isListening={isListening}
+          isSpeaking={isSpeaking}
+          isBrieActive={isBrieActive}
+          size="hero"
+          onToggleListen={() => {
             sounds.playClick();
             haptics.tap();
             if (isListening) {
@@ -1419,32 +1591,9 @@ export default function App() {
               setIsListening(true);
             }
           }}
-          className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all active:scale-95 border-2 ${
-            isListening
-              ? 'bg-[#00FF88] text-black border-white animate-pulse'
-              : isBrieActive
-              ? 'bg-zinc-900 text-[#00FF88] border-[#00FF88]/70 hover:bg-zinc-800'
-              : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:bg-zinc-800'
-          }`}
-          title="TAP TO SPEAK"
-          aria-label="TAP TO SPEAK"
-        >
-          <Mic className="w-6 h-6 sm:w-7 sm:h-7" />
-        </button>
+        />
 
-        <div className="flex items-center gap-2">
-          <span className="text-2xl sm:text-4xl font-black text-white tracking-wider">
-            BRIE
-          </span>
-          <span className="text-base sm:text-2xl font-bold text-white tracking-wider">
-            FOR BLIND
-          </span>
-        </div>
-      </div>
-
-      {/* 2 & 3. MIDDLE & BELOW: ONE HUGE GREEN BUTTON (ACTIVATE) AND ONE HUGE DARK RED BUTTON (DEACTIVATE) */}
-      <div className="flex-1 flex flex-col justify-center gap-6 w-full max-w-4xl mx-auto my-auto">
-        {/* Middle: ONE HUGE GREEN button, full width, text "ACTIVATE" in black, 180px tall */}
+        {/* Middle: Frosted Glassmorphism ACTIVATE Button */}
         <button
           id="btnActivate"
           onClick={() => {
@@ -1452,14 +1601,26 @@ export default function App() {
             haptics.success();
             activateBrie();
           }}
-          style={{ height: '180px' }}
-          className="w-full bg-[#00FF88] hover:bg-[#00e67a] active:scale-[0.99] text-black font-black text-4xl sm:text-6xl tracking-wider rounded-3xl shadow-2xl flex items-center justify-center transition-all cursor-pointer border-none"
+          style={{ minHeight: '120px', height: '145px' }}
+          className="group relative w-full overflow-hidden rounded-[28px] sm:rounded-3xl backdrop-blur-3xl bg-emerald-500/[0.14] hover:bg-emerald-500/[0.22] active:scale-[0.99] border-2 border-[#00FF88]/80 text-[#00FF88] hover:text-[#73FFBA] font-black text-3xl sm:text-5xl tracking-wider flex items-center justify-center transition-all duration-300 cursor-pointer shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_35px_rgba(0,255,136,0.3),inset_0_1.5px_1px_rgba(255,255,255,0.4),inset_0_0_24px_rgba(0,255,136,0.15)]"
           aria-label="Activate Brie"
         >
-          ACTIVATE
+          {/* Frosted Specular Glass Top Sheen */}
+          <div
+            className="absolute inset-x-0 top-0 h-1/2 pointer-events-none rounded-t-[26px]"
+            style={{
+              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%)',
+            }}
+          />
+          {/* Radiant Button Ambient Glow on Hover */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#00FF88]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+          <span className="relative z-10 drop-shadow-[0_0_16px_rgba(0,255,136,0.7)] flex items-center gap-3">
+            ACTIVATE
+          </span>
         </button>
 
-        {/* Below it: ONE HUGE DARK RED button, full width, text "DEACTIVATE" in white, 180px tall */}
+        {/* Below it: Frosted Glassmorphism DEACTIVATE Button */}
         <button
           id="btnDeactivate"
           onClick={() => {
@@ -1467,11 +1628,23 @@ export default function App() {
             haptics.listeningStop();
             deactivateBrie();
           }}
-          style={{ height: '180px' }}
-          className="w-full bg-[#330000] hover:bg-[#4a0000] active:scale-[0.99] text-white font-black text-4xl sm:text-6xl tracking-wider rounded-3xl shadow-2xl flex items-center justify-center border-2 border-red-950/60 transition-all cursor-pointer"
+          style={{ minHeight: '120px', height: '145px' }}
+          className="group relative w-full overflow-hidden rounded-[28px] sm:rounded-3xl backdrop-blur-3xl bg-red-950/[0.38] hover:bg-red-950/[0.55] active:scale-[0.99] border-2 border-red-500/50 text-white font-black text-3xl sm:text-5xl tracking-wider flex items-center justify-center transition-all duration-300 cursor-pointer shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_30px_rgba(239,68,68,0.2),inset_0_1.5px_1px_rgba(255,255,255,0.25),inset_0_0_24px_rgba(239,68,68,0.12)]"
           aria-label="Deactivate Brie"
         >
-          DEACTIVATE
+          {/* Frosted Specular Glass Top Sheen */}
+          <div
+            className="absolute inset-x-0 top-0 h-1/2 pointer-events-none rounded-t-[26px]"
+            style={{
+              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.03) 50%, transparent 100%)',
+            }}
+          />
+          {/* Radiant Button Ambient Glow on Hover */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+          <span className="relative z-10 drop-shadow-[0_2px_12px_rgba(239,68,68,0.5)] flex items-center gap-3">
+            DEACTIVATE
+          </span>
         </button>
       </div>
     </div>

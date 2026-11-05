@@ -1,134 +1,147 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 
 interface SiriWaveformProps {
   isListening: boolean;
   isSpeaking: boolean;
-  height?: number;
   className?: string;
+  height?: number;
 }
 
 /**
- * Brie Classic & Modern Sinusoidal Waveform Ribbon Visualizer
- * Overlapping harmonic sine waves (Cyan, Magenta, Violet, White)
- * that undulate dynamically with vocal activity.
+ * Authentic Siri Multi-Layer Liquid Audio Waveform
+ * Four vibrant overlapping sine-wave ribbons (Cyan, Magenta, Violet, Emerald)
+ * that dance and undulate in real-time during speech and voice recognition.
  */
 export const SiriWaveform: React.FC<SiriWaveformProps> = ({
   isListening,
   isSpeaking,
-  height = 70,
   className = '',
+  height,
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-  const phaseRef = useRef<number>(0);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let isActive = isListening || isSpeaking;
-
-    const render = () => {
-      // Dynamic scaling for high DPI
-      const width = canvas.offsetWidth;
-      const h = height;
-      if (canvas.width !== width || canvas.height !== h) {
-        canvas.width = width;
-        canvas.height = h;
-      }
-
-      ctx.clearRect(0, 0, width, h);
-
-      // Advance phase
-      phaseRef.current += isActive ? 0.08 : 0.02;
-      const phase = phaseRef.current;
-
-      // Base target amplitude
-      const baseAmp = isActive ? (isSpeaking ? h * 0.38 : h * 0.28) : h * 0.08;
-
-      // Draw 4 overlapping sinusoidal ribbons
-      const ribbons = [
-        {
-          color: 'rgba(6, 182, 212, 0.75)', // Cyan
-          freq: 0.016,
-          amp: baseAmp * 1.1,
-          phaseOffset: 0,
-          lineWidth: 3,
-        },
-        {
-          color: 'rgba(236, 72, 153, 0.75)', // Hot Magenta
-          freq: 0.019,
-          amp: baseAmp * 0.9,
-          phaseOffset: Math.PI / 2.5,
-          lineWidth: 2.5,
-        },
-        {
-          color: 'rgba(168, 85, 247, 0.7)', // Purple
-          freq: 0.014,
-          amp: baseAmp * 1.25,
-          phaseOffset: Math.PI,
-          lineWidth: 2.5,
-        },
-        {
-          color: 'rgba(255, 255, 255, 0.85)', // Core White
-          freq: 0.022,
-          amp: baseAmp * 0.7,
-          phaseOffset: Math.PI / 1.5,
-          lineWidth: 1.5,
-        },
-      ];
-
-      const midY = h / 2;
-
-      ribbons.forEach((r) => {
-        ctx.beginPath();
-        ctx.strokeStyle = r.color;
-        ctx.lineWidth = r.lineWidth;
-        ctx.shadowBlur = isActive ? 12 : 4;
-        ctx.shadowColor = r.color;
-
-        for (let x = 0; x <= width; x += 3) {
-          // Windowing function: taper amplitude smoothly to 0 at both ends
-          const normX = x / width;
-          const envelope = Math.sin(normX * Math.PI); // 0 at edges, 1 in center
-
-          const y =
-            midY +
-            Math.sin(x * r.freq + phase + r.phaseOffset) *
-              r.amp *
-              envelope *
-              (1 + 0.15 * Math.sin(phase * 1.5 + normX * 4));
-
-          if (x === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        }
-        ctx.stroke();
-      });
-
-      animFrameRef.current = requestAnimationFrame(render);
-    };
-
-    render();
-
-    return () => {
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
-      }
-    };
-  }, [isListening, isSpeaking, height]);
+  const isActive = isListening || isSpeaking;
 
   return (
-    <div className={`w-full overflow-hidden flex items-center justify-center ${className}`}>
-      <canvas
-        ref={canvasRef}
-        style={{ height: `${height}px`, width: '100%' }}
-        className="w-full pointer-events-none"
-      />
+    <div
+      style={height ? { height: `${height}px` } : undefined}
+      className={`relative w-full max-w-lg h-16 sm:h-20 flex items-center justify-center overflow-hidden pointer-events-none ${className}`}
+      aria-hidden="true"
+    >
+      <svg
+        viewBox="0 0 500 100"
+        className="w-full h-full overflow-visible"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <filter id="waveformGlow" x="-20%" y="-40%" width="140%" height="180%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          <linearGradient id="siriWaveCyan" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#00F0FF" stopOpacity="0" />
+            <stop offset="20%" stopColor="#00F0FF" stopOpacity="0.85" />
+            <stop offset="50%" stopColor="#00E5FF" stopOpacity="1" />
+            <stop offset="80%" stopColor="#00F0FF" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#00F0FF" stopOpacity="0" />
+          </linearGradient>
+
+          <linearGradient id="siriWaveMagenta" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#FF0080" stopOpacity="0" />
+            <stop offset="25%" stopColor="#FF0080" stopOpacity="0.8" />
+            <stop offset="50%" stopColor="#D946EF" stopOpacity="1" />
+            <stop offset="75%" stopColor="#EC4899" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#FF0080" stopOpacity="0" />
+          </linearGradient>
+
+          <linearGradient id="siriWaveViolet" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#7928CA" stopOpacity="0" />
+            <stop offset="30%" stopColor="#8B5CF6" stopOpacity="0.75" />
+            <stop offset="50%" stopColor="#A855F7" stopOpacity="0.9" />
+            <stop offset="70%" stopColor="#6366F1" stopOpacity="0.75" />
+            <stop offset="100%" stopColor="#7928CA" stopOpacity="0" />
+          </linearGradient>
+
+          <linearGradient id="siriWaveGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#00FF88" stopOpacity="0" />
+            <stop offset="25%" stopColor="#10B981" stopOpacity="0.8" />
+            <stop offset="50%" stopColor="#00FF88" stopOpacity="1" />
+            <stop offset="75%" stopColor="#34D399" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#00FF88" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Ambient Center Glow */}
+        <ellipse
+          cx="250"
+          cy="50"
+          rx={isActive ? "180" : "80"}
+          ry={isActive ? "28" : "8"}
+          fill="url(#siriWaveCyan)"
+          opacity={isActive ? 0.25 : 0.08}
+          filter="url(#waveformGlow)"
+          className="transition-all duration-700"
+        />
+
+        {/* Wave 1: Violet Bass Ribbon */}
+        <path
+          d={
+            isActive
+              ? "M 20 50 Q 80 15, 150 50 T 280 50 T 410 50 T 480 50"
+              : "M 20 50 Q 140 48, 250 50 T 480 50"
+          }
+          stroke="url(#siriWaveViolet)"
+          strokeWidth={isActive ? "3.5" : "1.5"}
+          strokeLinecap="round"
+          filter="url(#waveformGlow)"
+          className={isActive ? "animate-siri-wave-1" : "opacity-40"}
+        />
+
+        {/* Wave 2: Magenta Melody Ribbon */}
+        <path
+          d={
+            isActive
+              ? "M 20 50 Q 100 85, 180 50 T 320 50 T 440 50 T 480 50"
+              : "M 20 50 Q 150 52, 250 50 T 480 50"
+          }
+          stroke="url(#siriWaveMagenta)"
+          strokeWidth={isActive ? "3.5" : "1.5"}
+          strokeLinecap="round"
+          filter="url(#waveformGlow)"
+          className={isActive ? "animate-siri-wave-2" : "opacity-50"}
+        />
+
+        {/* Wave 3: Cyan Harmonic Ribbon */}
+        <path
+          d={
+            isActive
+              ? "M 20 50 Q 120 20, 200 50 T 340 50 T 460 50 T 480 50"
+              : "M 20 50 Q 160 49, 250 50 T 480 50"
+          }
+          stroke="url(#siriWaveCyan)"
+          strokeWidth={isActive ? "4" : "2"}
+          strokeLinecap="round"
+          filter="url(#waveformGlow)"
+          className={isActive ? "animate-siri-wave-3" : "opacity-60"}
+        />
+
+        {/* Wave 4: Neon Green Brie Signature Ribbon */}
+        <path
+          d={
+            isActive
+              ? "M 20 50 Q 70 75, 160 50 T 300 50 T 420 50 T 480 50"
+              : "M 20 50 Q 120 51, 250 50 T 480 50"
+          }
+          stroke="url(#siriWaveGreen)"
+          strokeWidth={isActive ? "3" : "1"}
+          strokeLinecap="round"
+          filter="url(#waveformGlow)"
+          className={isActive ? "animate-siri-wave-4" : "opacity-40"}
+        />
+      </svg>
     </div>
   );
 };

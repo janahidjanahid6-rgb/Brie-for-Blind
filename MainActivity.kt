@@ -132,8 +132,21 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts.language = Locale.US
-            tts.setSpeechRate(1.05f)
-            tts.setPitch(1.02f)
+            tts.setSpeechRate(0.85f)
+            tts.setPitch(1.0f)
+
+            // Select Aria voice if available
+            try {
+                val voices = tts.voices
+                val ariaVoice = voices?.find { it.name.contains("Aria", ignoreCase = true) }
+                    ?: voices?.find { it.name.contains("Jenny", ignoreCase = true) }
+                    ?: voices?.find { it.locale == Locale.US && it.name.contains("female", ignoreCase = true) }
+                if (ariaVoice != null) {
+                    tts.voice = ariaVoice
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Voice selection: ${e.message}")
+            }
 
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
@@ -143,12 +156,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 override fun onDone(utteranceId: String?) {
                     Log.d(TAG, "TTS Finished speaking: $utteranceId")
                     runOnUiThread {
-                        // After speaking on first launch or prompt, listen immediately for blind user
+                        // After speaking on first launch or prompt, listen 600ms after for blind user
                         if (utteranceId == "BRIE_FIRST_LAUNCH" || 
                             utteranceId == "BRIE_QUESTION" || 
                             utteranceId == "BRIE_MONEY_CONFIRM_1" || 
                             utteranceId == "BRIE_MONEY_CONFIRM_2") {
-                            startListening()
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                startListening()
+                            }, 600)
                         }
                     }
                 }
@@ -159,14 +174,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             })
 
             // =========================================================================
-            // FIRST LAUNCH SHRED PREFERENCES CHECK
+            // FIRST LAUNCH SHARED PREFERENCES CHECK
             // =========================================================================
             val firstTime = prefs.getBoolean("first_time", true)
 
             if (firstTime) {
-                // First launch - Brie introduces herself
+                // First launch - Aria introduction
+                val introText = "Hi, I am Brie. I am your new friend. I am here to help you every day and everything and talk with you anytime. Just tell me what you want, and I will do it for you."
                 tts.speak(
-                    "Hey! I'm Brie, your new friend! What's your name?",
+                    introText,
                     TextToSpeech.QUEUE_FLUSH,
                     null,
                     "BRIE_FIRST_LAUNCH"
@@ -175,7 +191,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 onboardingStep = 1
             } else {
                 userName = prefs.getString("user_name", "friend") ?: "friend"
-                speakOut("Hey $userName! Brie is right here with you. What do you need today?")
+                speakOut("Hi $userName, I am here. Tell me what you want, and I will do it for you.")
             }
         } else {
             Log.e(TAG, "TextToSpeech Initialization failed with status: $status")
@@ -261,7 +277,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     fun activateBrieByVoice() {
         isBrieActive = true
         val friend = if (userName.isNotEmpty()) userName else "friend"
-        tts.speak("I'm here $friend! I woke up. What do you need?", TextToSpeech.QUEUE_FLUSH, null, null)
+        tts.speak("Hi $friend, I am here. Tell me what you want, and I will do it for you.", TextToSpeech.QUEUE_FLUSH, null, null)
 
         // CHANGE ICON TO GLOWING GREEN ACTIVE
         findViewById<ImageView>(R.id.btnTapToSpeak)?.setImageResource(R.drawable.brie_active)
@@ -277,7 +293,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     fun deactivateBrieByVoice() {
         isBrieActive = false
         val friend = if (userName.isNotEmpty()) userName else "friend"
-        tts.speak("Okay $friend, I am leaving now like a ghost. Your phone is normal. Just say Hey Brie when you need me again.", TextToSpeech.QUEUE_FLUSH, null, null)
+        tts.speak("Bye $friend. I will be here when you need me.", TextToSpeech.QUEUE_FLUSH, null, null)
 
         // CHANGE ICON TO SLEEPING GREY
         findViewById<ImageView>(R.id.btnTapToSpeak)?.setImageResource(R.drawable.brie_sleep)
@@ -543,6 +559,26 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     // Hardware & OS Actions
     // -------------------------------------------------------------
 
+    private fun formatForUgandanUSSpeech(raw: String): String {
+        return raw
+            .replace(Regex("(?i)\\bI'm\\b"), "I am")
+            .replace(Regex("(?i)\\byou're\\b"), "you are")
+            .replace(Regex("(?i)\\bit's\\b"), "it is")
+            .replace(Regex("(?i)\\bdon't\\b"), "do not")
+            .replace(Regex("(?i)\\bcan't\\b"), "can not")
+            .replace(Regex("(?i)\\blet's\\b"), "let us")
+            .replace(Regex("(?i)\\bfinish\\b"), "fin-ish")
+            .replace(Regex("(?i)\\bfinished\\b"), "fin-ished")
+            .replace(Regex("(?i)\\bPIN\\b"), "P. I. N.")
+            .replace(Regex("(?i)\\bMTN\\b"), "M. T. N.")
+            .replace(Regex("(?i)\\bMoMo\\b"), "Mo-Mo")
+            .replace(Regex("(?i)\\bAirtel\\b"), "Air-tel")
+            .replace(Regex("(?i)\\bUGX\\b"), "U. G. X.")
+            .replace(Regex("(?i)\\bshillings\\b"), "Shil-lings")
+            .replace(Regex("\\bACTIVATE\\b"), "AC-TI-VATE")
+            .replace(Regex("\\bDEACTIVATE\\b"), "DE-AC-TI-VATE")
+    }
+
     private fun speakOut(text: String, onComplete: (() -> Unit)? = null) {
         val utteranceId = "BRIE_${System.currentTimeMillis()}"
         if (onComplete != null) {
@@ -556,11 +592,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 override fun onError(id: String?) {}
             })
         }
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        val articulate = formatForUgandanUSSpeech(text)
+        tts.speak(articulate, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
     }
 
     private fun speakOutWithId(text: String, utteranceId: String) {
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        val articulate = formatForUgandanUSSpeech(text)
+        tts.speak(articulate, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
     }
 
     private fun triggerHapticFeedback(durationMs: Long) {
