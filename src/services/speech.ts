@@ -24,6 +24,83 @@ class SpeechService {
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private keepAliveInterval: any = null;
 
+  private pausedForSpeech = false;
+  private lastSpokenText = '';
+  private lastSpeechEndedAt = 0;
+  private lastCommitted = '';
+  private lastCommittedAt = 0;
+  private pendingInterim = '';
+  private silenceTimer: any = null;
+  private wakeFiredThisUtterance = false;
+  private restartDelayMs = 250;
+
+  private static readonly SILENCE_COMMIT_MS = 1400;
+  private static readonly ECHO_WINDOW_MS = 2500;
+
+  private static normalize(text: string): string {
+    return text.toLowerCase().replace(/[^a-z0-9\s']/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  private static escapeRegExp(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private containsWakeWord(normalized: string): boolean {
+    return this.wakeWords.some((w) =>
+      new RegExp(`\\b${SpeechService.escapeRegExp(w)}\\b`).test(normalized)
+    );
+  }
+
+  // The mic can pick up Brie's own voice from the speaker right after she talks.
+  private isEcho(normalized: string): boolean {
+    if (!this.lastSpokenText || normalized.length < 4) return false;
+    const recentlySpoke =
+      this.isSpeaking || Date.now() - this.lastSpeechEndedAt < SpeechService.ECHO_WINDOW_MS;
+    return recentlySpoke && this.lastSpokenText.includes(normalized);
+  }
+
+  private commitFinal(text: string) {
+    clearTimeout(this.silenceTimer);
+    this.pendingInterim = '';
+    this.wakeFiredThisUtterance = false;
+
+    const normalized = SpeechService.normalize(text);
+    if (normalized.length < 2) return;
+    if (normalized === this.lastCommitted && Date.now() - this.lastCommittedAt < 3000) return;
+    if (this.isEcho(normalized)) return;
+
+    this.lastCommitted = normalized;
+    this.lastCommittedAt = Date.now();
+    this.onTranscriptCallback?.(text.trim(), true);
+  }
+
+  private pauseRecognitionForSpeech() {
+    if (!this.isListening || !this.recognition) return;
+    this.pausedForSpeech = true;
+    clearTimeout(this.silenceTimer);
+    this.pendingInterim = '';
+    try {
+      this.recognition.abort();
+    } catch {
+      // not running
+    }
+  }
+
+  private resumeRecognitionAfterSpeech() {
+    if (!this.pausedForSpeech) return;
+    this.pausedForSpeech = false;
+    if (!this.isListening) return;
+    setTimeout(() => {
+      if (this.isListening && !this.isSpeaking) {
+        try {
+          this.recognition?.start();
+        } catch {
+          // already started
+        }
+      }
+    }, 300);
+  }
+
   constructor() {
     if (typeof window !== 'undefined') {
       if ('speechSynthesis' in window) {
@@ -67,6 +144,9 @@ class SpeechService {
 
       const utterance = new SpeechSynthesisUtterance(text);
       this.currentUtterance = utterance;
+      this.lastSpokenText = SpeechService.normalize(text);
+      this.isSpeaking = true;
+      this.pauseRecognitionForSpeech();
 
       // Brie always speaks at normal speed, regardless of caller or saved settings.
       utterance.rate = 1.0;
@@ -99,6 +179,8 @@ class SpeechService {
       utterance.onend = () => {
         this.isSpeaking = false;
         this.currentUtterance = null;
+        this.lastSpeechEndedAt = Date.now();
+        this.resumeRecognitionAfterSpeech();
         options.onEnd?.();
         resolve();
       };
@@ -106,6 +188,8 @@ class SpeechService {
       utterance.onerror = (e) => {
         this.isSpeaking = false;
         this.currentUtterance = null;
+        this.lastSpeechEndedAt = Date.now();
+        this.resumeRecognitionAfterSpeech();
         options.onError?.(e);
         resolve();
       };
@@ -156,7 +240,11 @@ class SpeechService {
       this.recognition.interimResults = true;
       this.recognition.lang = 'en-US';
 
+      this.recognition.maxAlternatives = 1;
+
       this.recognition.onresult = (event: any) => {
+        if (this.isSpeaking) return;
+
         let interimTranscript = '';
         let finalTranscript = '';
 
@@ -169,25 +257,37 @@ class SpeechService {
           }
         }
 
-        const rawTranscript = (finalTranscript || interimTranscript).toLowerCase().trim();
+        const current = SpeechService.normalize(finalTranscript || interimTranscript);
+        if (!current || this.isEcho(current)) return;
 
-        // Check if wake word detected
-        const hasWakeWord = this.wakeWords.some((w) => rawTranscript.includes(w));
-        if (hasWakeWord) {
+        this.restartDelayMs = 250;
+
+        if (!this.wakeFiredThisUtterance && this.containsWakeWord(current)) {
+          this.wakeFiredThisUtterance = true;
           this.onWakeWordDetectedCallback?.();
         }
 
         if (finalTranscript) {
-          this.onTranscriptCallback?.(finalTranscript.trim(), true);
+          this.commitFinal(finalTranscript);
         } else if (interimTranscript) {
+          this.pendingInterim = interimTranscript;
           this.onTranscriptCallback?.(interimTranscript.trim(), false);
+          // Some browsers never finalize a phrase; treat a pause in speech as the end of it.
+          clearTimeout(this.silenceTimer);
+          this.silenceTimer = setTimeout(() => {
+            if (this.pendingInterim) this.commitFinal(this.pendingInterim);
+          }, SpeechService.SILENCE_COMMIT_MS);
         }
       };
 
       this.recognition.onerror = (event: any) => {
+        if (event.error === 'aborted') return;
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           // Mic permission denied: restarting would loop forever and freeze the page.
           this.isListening = false;
+        }
+        if (event.error === 'network' || event.error === 'audio-capture') {
+          this.restartDelayMs = Math.min(this.restartDelayMs * 2, 5000);
         }
         if (event.error !== 'no-speech') {
           console.warn('Speech recognition error:', event.error);
@@ -196,14 +296,17 @@ class SpeechService {
       };
 
       this.recognition.onend = () => {
-        // If listening should be kept alive, restart recognition
-        if (this.isListening) {
-          try {
-            this.recognition?.start();
-          } catch {
-            // Already started
+        if (this.pendingInterim) this.commitFinal(this.pendingInterim);
+        if (!this.isListening || this.pausedForSpeech || this.isSpeaking) return;
+        setTimeout(() => {
+          if (this.isListening && !this.pausedForSpeech && !this.isSpeaking) {
+            try {
+              this.recognition?.start();
+            } catch {
+              // Already started
+            }
           }
-        }
+        }, this.restartDelayMs);
       };
     } catch (e) {
       console.error('Failed to initialize speech recognition:', e);
@@ -219,6 +322,11 @@ class SpeechService {
       return;
     }
     this.isListening = true;
+    if (this.isSpeaking) {
+      // Starting now would capture Brie's own voice; resume once she finishes.
+      this.pausedForSpeech = true;
+      return;
+    }
     try {
       this.recognition.start();
     } catch {
@@ -228,6 +336,9 @@ class SpeechService {
 
   public stopListening() {
     this.isListening = false;
+    this.pausedForSpeech = false;
+    clearTimeout(this.silenceTimer);
+    this.pendingInterim = '';
     if (this.recognition) {
       try {
         this.recognition.stop();

@@ -14,7 +14,7 @@ export default defineConfig(() => {
     server: {
       host: true,
       // Accept any preview host (*.vercel.run, *.vercel.app, *.v0.build, etc.).
-      allowedHosts: true,
+      allowedHosts: true as const,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
@@ -23,7 +23,7 @@ export default defineConfig(() => {
     },
     preview: {
       host: true,
-      allowedHosts: true,
+      allowedHosts: true as const,
     },
   };
 });

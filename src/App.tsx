@@ -468,30 +468,46 @@ export default function App() {
   }, [currentMode, isBrieActive]);
 
   // Execute Voice Command Intent
-  const handleProcessVoiceInput = async (transcript: string) => {
+  const handleProcessVoiceInput = async (heardText: string) => {
     sounds.playEarconStop();
     haptics.listeningStop();
     setIsListening(false);
 
-    if (!transcript.trim()) return;
+    if (!heardText.trim()) return;
 
-    const lower = transcript.toLowerCase();
-    const magicActivate = ['activate', 'hey brie', 'brie wake up', 'wake up brie', 'brie are you there', 'brie activate'];
-    const magicDeactivate = ['deactivate', 'brie sleep', 'brie go to sleep', 'brie leave', 'brie deactivate', 'brie go away', 'leave my phone', 'brie i am tired'];
+    const normalized = heardText.toLowerCase().replace(/[^a-z0-9\s']/g, ' ').replace(/\s+/g, ' ').trim();
+    const hasPhrase = (phrases: string[]) =>
+      phrases.some((p) => new RegExp(`\\b${p}\\b`).test(normalized));
 
-    if (magicActivate.some((w) => lower.includes(w))) {
-      activateBrie();
-      return;
-    }
+    const magicDeactivate = ['deactivate', 'brie sleep', 'brie go to sleep', 'brie leave', 'brie go away', 'leave my phone', 'brie i am tired'];
+    const magicActivate = ['activate', 'brie wake up', 'wake up brie', 'brie are you there'];
+    const wakePhrases = ['hey brie', 'hello brie', 'hey bri', 'hello bri', 'brie', 'bri', settings.wakeWord.toLowerCase()];
 
-    if (magicDeactivate.some((w) => lower.includes(w))) {
+    if (hasPhrase(magicDeactivate)) {
       deactivateBrie();
       return;
     }
 
-    if (!isBrieActive) {
+    const commandAfterWake = wakePhrases
+      .reduce((text, w) => text.replace(new RegExp(`\\b${w}\\b`, 'g'), ' '), normalized)
+      .replace(/\b(activate|wake up|are you there|please|okay|ok)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const saidOnlyWakeWord = commandAfterWake.length === 0;
+
+    if (!isBrieActiveRef.current) {
+      if (hasPhrase(magicActivate) || hasPhrase(wakePhrases)) activateBrie();
       return;
     }
+
+    if (saidOnlyWakeWord) {
+      const ack = `Yes ${userName}, I'm listening.`;
+      setLastBriReply(ack);
+      speakBrie(ack, { resumeListening: true });
+      return;
+    }
+
+    const transcript = hasPhrase(wakePhrases) ? commandAfterWake : heardText.trim();
 
     // Check if waiting for permission decision on incoming call
     if (currentCall.permissionPending) {
