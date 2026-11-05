@@ -1,0 +1,6 @@
+{
+  "name": "Brie for Blind",
+  "description": "Voice-first autonomous assistant with offline processing, smart home control, phone takeover, haptic feedback, and gesture navigation tailored for blind and visually impaired users.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

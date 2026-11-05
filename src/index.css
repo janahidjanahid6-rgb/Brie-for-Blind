@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Brie Orb & Chromatic Visual Effects */
+@keyframes siri-orb-rotate {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.04);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes siri-orb-counter {
+  0% {
+    transform: rotate(360deg) scale(1.02);
+  }
+  50% {
+    transform: rotate(180deg) scale(0.98);
+  }
+  100% {
+    transform: rotate(0deg) scale(1.02);
+  }
+}
+
+@keyframes siri-orb-breathe {
+  0%, 100% {
+    transform: scale(0.97);
+    filter: brightness(1) saturate(1.2);
+  }
+  50% {
+    transform: scale(1.03);
+    filter: brightness(1.2) saturate(1.4);
+  }
+}
+
+@keyframes siri-edge-glow {
+  0% {
+    filter: hue-rotate(0deg) brightness(1);
+    opacity: 0.85;
+  }
+  50% {
+    filter: hue-rotate(120deg) brightness(1.3);
+    opacity: 1;
+  }
+  100% {
+    filter: hue-rotate(360deg) brightness(1);
+    opacity: 0.85;
+  }
+}
+
+@keyframes siri-ripple {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+.animate-siri-rotate {
+  animation: siri-orb-rotate 10s linear infinite;
+}
+
+.animate-siri-rotate-fast {
+  animation: siri-orb-rotate 4s linear infinite;
+}
+
+.animate-siri-counter {
+  animation: siri-orb-counter 8s linear infinite;
+}
+
+.animate-siri-breathe {
+  animation: siri-orb-breathe 3.5s ease-in-out infinite;
+}
+
+.animate-siri-edge {
+  animation: siri-edge-glow 6s linear infinite;
+}
+
+.animate-siri-ripple {
+  animation: siri-ripple 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+/* Custom High Contrast Utilities */
+.high-contrast-focus:focus-visible {
+  outline: 4px solid #facc15 !important;
+  outline-offset: 4px !important;
+}
+
+/* Yellow on Black Theme */
+.theme-yellow-black {
+  --bg-primary: #000000;
+  --bg-secondary: #121212;
+  --bg-surface: #1e1e1e;
+  --border-color: #facc15;
+  --text-primary: #facc15;
+  --text-secondary: #fef08a;
+  --text-muted: #eab308;
+  --accent: #facc15;
+}
+
+/* White on Black Theme */
+.theme-white-black {
+  --bg-primary: #000000;
+  --bg-secondary: #0f172a;
+  --bg-surface: #1e293b;
+  --border-color: #ffffff;
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #38bdf8;
+}
+
+/* Cyan on Deep Blue Theme */
+.theme-cyan-dark {
+  --bg-primary: #030712;
+  --bg-secondary: #081a2e;
+  --bg-surface: #0e2947;
+  --border-color: #38bdf8;
+  --text-primary: #38bdf8;
+  --text-secondary: #bae6fd;
+  --text-muted: #7dd3fc;
+  --accent: #0284c7;
+}
+
+/* Amber Night Theme */
+.theme-amber-dark {
+  --bg-primary: #0a0602;
+  --bg-secondary: #1c1005;
+  --bg-surface: #2b1908;
+  --border-color: #fb923c;
+  --text-primary: #fbbf24;
+  --text-secondary: #fde68a;
+  --text-muted: #f59e0b;
+  --accent: #f97316;
+}

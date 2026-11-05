@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glowing Green Active Indicator for Brie Voice Assistant -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <!-- Outer Glow Ring -->
+    <path
+        android:fillColor="#3310B981"
+        android:pathData="M60,60m-58,0a58,58 0,1 1,116 0a58,58 0,1 1,-116 0" />
+    <!-- Middle Emerald Ring -->
+    <path
+        android:fillColor="#6610B981"
+        android:pathData="M60,60m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0" />
+    <!-- Core Bright Glowing Green Orb -->
+    <path
+        android:fillColor="#FF10B981"
+        android:pathData="M60,60m-34,0a34,34 0,1 1,68 0a34,34 0,1 1,-68 0" />
+    <!-- Bright Center Highlight -->
+    <path
+        android:fillColor="#FFD1FAE5"
+        android:pathData="M52,48m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" />
+</vector>

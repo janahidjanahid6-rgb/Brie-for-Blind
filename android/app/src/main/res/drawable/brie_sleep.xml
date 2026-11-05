@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sleeping Grey Ghost Indicator when Brie is deactivated -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <!-- Outer Dim Ring -->
+    <path
+        android:fillColor="#1A71717A"
+        android:pathData="M60,60m-58,0a58,58 0,1 1,116 0a58,58 0,1 1,-116 0" />
+    <!-- Core Sleeping Grey Orb -->
+    <path
+        android:fillColor="#FF52525B"
+        android:pathData="M60,60m-34,0a34,34 0,1 1,68 0a34,34 0,1 1,-68 0" />
+    <!-- Sleeping Eyes (Closed Slits) -->
+    <path
+        android:strokeColor="#FFA1A1AA"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M48,58 Q53,62 58,58" />
+    <path
+        android:strokeColor="#FFA1A1AA"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M62,58 Q67,62 72,58" />
+</vector>
