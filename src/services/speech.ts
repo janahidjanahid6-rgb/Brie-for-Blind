@@ -68,8 +68,10 @@ class SpeechService {
       const utterance = new SpeechSynthesisUtterance(text);
       this.currentUtterance = utterance;
 
-      utterance.rate = options.rate ?? 1.15;
-      utterance.pitch = options.pitch ?? 1.0;
+      // Brie always speaks at normal speed, regardless of caller or saved settings.
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
 
       // Select natural English voice if available
       const voices = this.getVoices();

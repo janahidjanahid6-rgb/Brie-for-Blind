@@ -116,7 +116,7 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>({
     wakeWord: 'hey brie',
     trainedWakeWords: [],
-    speechRate: 1.15,
+    speechRate: 1.0,
     speechPitch: 1.0,
     selectedVoiceURI: '',
     hapticsEnabled: true,

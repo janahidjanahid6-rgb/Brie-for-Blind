@@ -132,8 +132,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts.language = Locale.US
-            tts.setSpeechRate(1.05f)
-            tts.setPitch(1.02f)
+            tts.setSpeechRate(1.0f)
+            tts.setPitch(1.0f)
 
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
