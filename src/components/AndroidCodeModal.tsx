@@ -1,5 +1,20 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, Download, FileCode, Sparkles, Ghost, Layout } from 'lucide-react';
+import {
+  X,
+  Copy,
+  Check,
+  Download,
+  FileCode,
+  Sparkles,
+  Ghost,
+  ShieldCheck,
+  Eye,
+  Smartphone,
+  Cpu,
+  Layers,
+  Power,
+  Zap,
+} from 'lucide-react';
 import { sounds } from '../services/soundEffects';
 import { haptics } from '../services/haptics';
 
@@ -9,11 +24,273 @@ interface AndroidCodeModalProps {
   onOpenDrawables?: () => void;
 }
 
-export const AndroidCodeModal: React.FC<AndroidCodeModalProps> = ({ isOpen, onClose, onOpenDrawables }) => {
-  const [activeTab, setActiveTab] = useState<'xml' | 'kt'>('xml');
+export const AndroidCodeModal: React.FC<AndroidCodeModalProps> = ({
+  isOpen,
+  onClose,
+  onOpenDrawables,
+}) => {
+  const [activeTab, setActiveTab] = useState<
+    'takeover' | 'manifest' | 'accessibility' | 'assistant' | 'overlay' | 'xml'
+  >('takeover');
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
+
+  const manifestXml = `<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.brie.assistant">
+
+    <!-- 1. Voice, Audio & Tactile Hardware -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+
+    <!-- 2. Background Persistence & Continuous Listening -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- 3. System Overlay & Screen Draw-Over -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/brie_active"
+        android:label="Brie"
+        android:roundIcon="@drawable/brie_active"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 1. Autonomous Accessibility Service -->
+        <service
+            android:name=".BrieAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:label="Brie Autonomous Blind Assistant"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- 2. Default Digital Assistant System Service -->
+        <service
+            android:name=".BrieVoiceInteractionService"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.voice_interaction_service"
+                android:resource="@xml/voice_interaction_service.xml" />
+        </service>
+
+        <service
+            android:name=".BrieVoiceSessionService"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true" />
+
+        <service
+            android:name=".BrieRecognitionService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
+        <!-- 3. Background Continuous Ghost Voice Service -->
+        <service
+            android:name=".BrieService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!-- 4. Phone Boot Auto-Start Receiver -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>`;
+
+  const accessibilityKt = `package com.brie.assistant
+
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
+import android.graphics.Path
+import android.os.Bundle
+import android.util.Log
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
+
+/**
+ * BrieAccessibilityService - Autonomous Screen Reader & OS Action Engine
+ *
+ * Operates third-party apps for blind users:
+ * - Reads all screen text non-visually.
+ * - Clicks buttons by text (e.g., "Send", "Install", "Transfer").
+ * - Types text into search and input fields.
+ * - Performs system gestures: Home, Back, Recents, Notifications.
+ */
+class BrieAccessibilityService : AccessibilityService() {
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        Log.d("BrieAccessibility", "Brie Accessibility Service Connected.")
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // Intercepts window state changes and notifications
+    }
+
+    override fun onInterrupt() {}
+
+    fun dumpScreenText(): List<String> {
+        val rootNode = rootInActiveWindow ?: return emptyList()
+        val textList = mutableListOf<String>()
+        collectText(rootNode, textList)
+        return textList
+    }
+
+    private fun collectText(node: AccessibilityNodeInfo, list: MutableList<String>) {
+        val text = node.text?.toString() ?: node.contentDescription?.toString()
+        if (!text.isNullOrBlank()) list.add(text.trim())
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            collectText(child, list)
+        }
+    }
+
+    fun clickElementByText(text: String): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
+        val nodes = rootNode.findAccessibilityNodeInfosByText(text)
+        for (node in nodes) {
+            if (node.isClickable) return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            var p = node.parent
+            while (p != null) {
+                if (p.isClickable) return p.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                p = p.parent
+            }
+        }
+        return false
+    }
+
+    fun setTextIntoField(text: String): Boolean {
+        val rootNode = rootInActiveWindow ?: return false
+        val focused = rootNode.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        if (focused != null && focused.isEditable) {
+            val args = Bundle()
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+            return focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        }
+        return false
+    }
+
+    fun performGoHome(): Boolean = performGlobalAction(GLOBAL_ACTION_HOME)
+    fun performGoBack(): Boolean = performGlobalAction(GLOBAL_ACTION_BACK)
+}`;
+
+  const assistantKt = `package com.brie.assistant
+
+import android.os.Bundle
+import android.service.voice.VoiceInteractionService
+import android.service.voice.VoiceInteractionSession
+import android.service.voice.VoiceInteractionSessionService
+import android.util.Log
+
+/**
+ * BrieVoiceInteractionService - Default Digital Assistant
+ * Replaces Google Assistant / Gemini / Bixby at the OS level.
+ */
+class BrieVoiceInteractionService : VoiceInteractionService() {
+    override fun onReady() {
+        super.onReady()
+        Log.d("BrieVoiceService", "Brie Registered as Default Digital Assistant.")
+    }
+}
+
+class BrieVoiceSessionService : VoiceInteractionSessionService() {
+    override fun onNewSession(args: Bundle?): VoiceInteractionSession {
+        return object : VoiceInteractionSession(this) {
+            override fun onShow(args: Bundle?, showFlags: Int) {
+                super.onShow(args, showFlags)
+                MainActivity.instance?.startListening()
+            }
+        }
+    }
+}`;
+
+  const overlayKt = `package com.brie.assistant
+
+import android.content.Context
+import android.graphics.PixelFormat
+import android.os.Build
+import android.view.Gravity
+import android.view.WindowManager
+import android.widget.ImageView
+
+/**
+ * BrieOverlayManager - Floating System Overlay (SYSTEM_ALERT_WINDOW)
+ * Draws the friendly green ghost over any app (WhatsApp, Calls, Browser).
+ */
+class BrieOverlayManager(private val context: Context) {
+    private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    private var overlayView: ImageView? = null
+
+    fun showFloatingGhost(onClicked: () -> Unit) {
+        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            layoutFlag,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 30
+            y = 120
+        }
+        val ghost = ImageView(context).apply {
+            setImageResource(R.drawable.brie_active)
+            setOnClickListener { onClicked() }
+        }
+        overlayView = ghost
+        windowManager.addView(ghost, params)
+    }
+
+    fun hideFloatingGhost() {
+        overlayView?.let { windowManager.removeView(it); overlayView = null }
+    }
+}`;
 
   const activityMainXml = `<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
@@ -24,7 +301,6 @@ export const AndroidCodeModal: React.FC<AndroidCodeModalProps> = ({ isOpen, onCl
     android:background="#000000"
     android:padding="24dp">
 
-    <!-- TOP: ONLY 3 THINGS - ICON + BRIE -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -54,10 +330,8 @@ export const AndroidCodeModal: React.FC<AndroidCodeModalProps> = ({ isOpen, onCl
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:layout_marginStart="8dp" />
-
     </LinearLayout>
 
-    <!-- MIDDLE: ACTIVATE ONLY -->
     <Button
         android:id="@+id/btnActivate"
         android:layout_width="match_parent"
@@ -67,10 +341,8 @@ export const AndroidCodeModal: React.FC<AndroidCodeModalProps> = ({ isOpen, onCl
         android:textSize="36sp"
         android:textStyle="bold"
         android:textColor="#000000"
-        android:backgroundTint="#00FF88"
-        android:contentDescription="Activate Brie" />
+        android:backgroundTint="#00FF88" />
 
-    <!-- MIDDLE: DEACTIVATE ONLY -->
     <Button
         android:id="@+id/btnDeactivate"
         android:layout_width="match_parent"
@@ -80,211 +352,260 @@ export const AndroidCodeModal: React.FC<AndroidCodeModalProps> = ({ isOpen, onCl
         android:textSize="36sp"
         android:textStyle="bold"
         android:textColor="#FFFFFF"
-        android:backgroundTint="#330000"
-        android:contentDescription="Deactivate Brie" />
-
+        android:backgroundTint="#330000" />
 </LinearLayout>`;
 
-  const kotlinVoiceSnippet = `// Add this to MainActivity.kt - VOICE ACTIVATION FOR BLIND
-
-private lateinit var speechRecognizer: SpeechRecognizer
-private val magicActivate = listOf("activate", "hey brie", "brie wake up", "wake up brie", "brie are you there", "brie activate")
-private val magicDeactivate = listOf("deactivate", "brie sleep", "brie go to sleep", "brie leave", "brie deactivate", "brie go away", "leave my phone")
-
-fun startListening() {
-    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-    // Auto-detect Luganda, Swahili, English - Brie knows all
-    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-    speechRecognizer.startListening(intent)
-}
-
-fun onVoiceResult(text: String) {
-    val lower = text.lowercase()
-    if (magicActivate.any { lower.contains(it) }) {
-        // ACTIVATE BY VOICE
-        activateBrieByVoice()
+  const getCode = () => {
+    switch (activeTab) {
+      case 'manifest':
+        return manifestXml;
+      case 'accessibility':
+        return accessibilityKt;
+      case 'assistant':
+        return assistantKt;
+      case 'overlay':
+        return overlayKt;
+      case 'xml':
+        return activityMainXml;
+      default:
+        return '';
     }
-    if (magicDeactivate.any { lower.contains(it) }) {
-        // DEACTIVATE BY VOICE - GHOST LEAVE
-        deactivateBrieByVoice()
-    }
-}
-
-fun activateBrieByVoice() {
-    tts.speak("I'm here friend! I woke up. What do you need?", TextToSpeech.QUEUE_FLUSH, null, null)
-    // CHANGE ICON TO GLOWING GREEN ACTIVE
-    findViewById<ImageView>(R.id.btnTapToSpeak)?.setImageResource(R.drawable.brie_active)
-    // Start service
-    startService(Intent(this, BrieService::class.java))
-}
-
-fun deactivateBrieByVoice() {
-    tts.speak("Okay friend, I am leaving now like a ghost. Your phone is normal. Just say Hey Brie when you need me again.", TextToSpeech.QUEUE_FLUSH, null, null)
-    // CHANGE ICON TO SLEEPING GREY
-    findViewById<ImageView>(R.id.btnTapToSpeak)?.setImageResource(R.drawable.brie_sleep)
-    // Stop service, stop listening - PHONE NORMAL
-    speechRecognizer.stopListening()
-    stopService(Intent(this, BrieService::class.java))
-}`;
-
-  const currentSnippet = activeTab === 'xml' ? activityMainXml : kotlinVoiceSnippet;
-  const currentFileName = activeTab === 'xml' ? 'activity_main.xml' : 'MainActivity.kt';
-
-  const handleCopy = () => {
-    sounds.playSuccess();
-    haptics.success();
-    navigator.clipboard.writeText(currentSnippet);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleDownload = () => {
+  const handleCopy = () => {
     sounds.playClick();
-    const element = document.createElement('a');
-    const file = new Blob([currentSnippet], { type: 'text/plain' });
-    element.href = URL.createObjectURL(file);
-    element.download = currentFileName;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    haptics.tap();
+    navigator.clipboard.writeText(getCode());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
-    >
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-zinc-950 border-2 border-yellow-400 rounded-3xl flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-zinc-950 border border-white/20 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-zinc-800 bg-zinc-900/50">
+        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-zinc-900/60 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-yellow-400/10 border border-yellow-400/30 flex items-center justify-center text-yellow-400">
-              <FileCode className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-[#00FF88]">
+              <Cpu className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 id="modal-title" className="text-lg font-black text-white">
-                  Android Code &amp; Layout
-                </h2>
-                <div className="flex items-center bg-zinc-900 rounded-xl p-0.5 border border-zinc-700">
-                  <button
-                    onClick={() => {
-                      sounds.playClick();
-                      setActiveTab('xml');
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      activeTab === 'xml'
-                        ? 'bg-yellow-400 text-black shadow-sm'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <Layout className="w-3.5 h-3.5" />
-                    <span>activity_main.xml</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      sounds.playClick();
-                      setActiveTab('kt');
-                    }}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      activeTab === 'kt'
-                        ? 'bg-yellow-400 text-black shadow-sm'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <FileCode className="w-3.5 h-3.5" />
-                    <span>MainActivity.kt</span>
-                  </button>
-                </div>
-              </div>
+              <h2 className="text-xl font-black text-white tracking-wide">
+                Part 1: Android System Takeover Engine
+              </h2>
               <p className="text-xs text-zinc-400">
-                {activeTab === 'xml'
-                  ? 'High-contrast layout: BRIE FOR BLIND + Large ACTIVATE / DEACTIVATE'
-                  : 'Voice-activation & Ghost leaving routine for blind users'}
+                Full OS-level permissions for autonomous phone operation
               </p>
             </div>
           </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Selector */}
+        <div className="flex items-center gap-1.5 p-3 px-6 border-b border-white/10 bg-black/40 overflow-x-auto text-xs font-bold">
           <button
-            onClick={() => {
-              sounds.playClick();
-              onClose();
-            }}
-            className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-            aria-label="Close modal"
+            onClick={() => setActiveTab('takeover')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+              activeTab === 'takeover'
+                ? 'bg-[#00FF88] text-black shadow-lg shadow-emerald-500/30'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
           >
-            <X className="w-5 h-5" />
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Overview & Takeover Status
+          </button>
+
+          <button
+            onClick={() => setActiveTab('manifest')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+              activeTab === 'manifest'
+                ? 'bg-[#00FF88] text-black shadow-lg shadow-emerald-500/30'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <FileCode className="w-3.5 h-3.5" />
+            AndroidManifest.xml
+          </button>
+
+          <button
+            onClick={() => setActiveTab('accessibility')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+              activeTab === 'accessibility'
+                ? 'bg-[#00FF88] text-black shadow-lg shadow-emerald-500/30'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            BrieAccessibilityService.kt
+          </button>
+
+          <button
+            onClick={() => setActiveTab('assistant')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+              activeTab === 'assistant'
+                ? 'bg-[#00FF88] text-black shadow-lg shadow-emerald-500/30'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            VoiceAssistant.kt
+          </button>
+
+          <button
+            onClick={() => setActiveTab('overlay')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+              activeTab === 'overlay'
+                ? 'bg-[#00FF88] text-black shadow-lg shadow-emerald-500/30'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            OverlayManager.kt
+          </button>
+
+          <button
+            onClick={() => setActiveTab('xml')}
+            className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+              activeTab === 'xml'
+                ? 'bg-[#00FF88] text-black shadow-lg shadow-emerald-500/30'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            activity_main.xml
           </button>
         </div>
 
-        {/* Highlight Banner */}
-        <div className="p-4 bg-gradient-to-r from-yellow-400/10 via-amber-500/10 to-orange-500/10 border-b border-yellow-400/20 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs font-bold text-yellow-200">
-            <Sparkles className="w-4 h-4 text-yellow-400 shrink-0" />
-            <span>
-              Target: <span className="font-mono text-white">/android/app/src/main/res/layout/{currentFileName}</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {onOpenDrawables && (
-              <button
-                onClick={() => {
-                  sounds.playClick();
-                  onOpenDrawables();
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-transform active:scale-95 shadow-md"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Upload Drawables</span>
-              </button>
-            )}
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black text-xs font-black transition-transform active:scale-95"
-            >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied!' : `Copy ${activeTab === 'xml' ? 'XML' : 'Kotlin'}`}</span>
-            </button>
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs font-black transition-transform active:scale-95"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download File</span>
-            </button>
-          </div>
+        {/* Content Body */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {activeTab === 'takeover' ? (
+            <div className="space-y-6">
+              <div className="p-5 rounded-2xl bg-emerald-950/30 border border-emerald-500/40 space-y-2">
+                <div className="flex items-center gap-2 text-[#00FF88] font-black text-sm uppercase tracking-wider">
+                  <Sparkles className="w-4 h-4" />
+                  All Part 1 System Layers Installed in Codebase
+                </div>
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  Brie is now fully architected with all Android system services required to take
+                  over the phone autonomously. Each permission and service has been defined in{' '}
+                  <code className="text-[#00FF88]">AndroidManifest.xml</code>,{' '}
+                  <code className="text-[#00FF88]">BrieAccessibilityService.kt</code>,{' '}
+                  <code className="text-[#00FF88]">BrieVoiceInteractionService.kt</code>, and{' '}
+                  <code className="text-[#00FF88]">BrieOverlayManager.kt</code>.
+                </p>
+              </div>
+
+              {/* 5 Takeover System Pillars */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+                  <div className="flex items-center gap-2 text-cyan-300 font-bold text-sm">
+                    <Eye className="w-4 h-4" />
+                    1. Accessibility Service
+                  </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Inspects screen content, reads UI elements aloud to blind users, taps buttons
+                    autonomously in other apps (e.g., WhatsApp, MTN MoMo, dialer), and types text.
+                  </p>
+                  <div className="text-[11px] font-mono text-emerald-400 font-semibold">
+                    ✓ BIND_ACCESSIBILITY_SERVICE
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+                  <div className="flex items-center gap-2 text-purple-300 font-bold text-sm">
+                    <Power className="w-4 h-4" />
+                    2. Default Digital Assistant
+                  </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Replaces Google Assistant / Gemini. Allows summoning Brie with power-button
+                    long-press, assistant hardware gesture, or lock screen wake word.
+                  </p>
+                  <div className="text-[11px] font-mono text-emerald-400 font-semibold">
+                    ✓ BIND_VOICE_INTERACTION
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+                  <div className="flex items-center gap-2 text-pink-300 font-bold text-sm">
+                    <Layers className="w-4 h-4" />
+                    3. System Alert Window Overlay
+                  </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Draws over other apps. The friendly neon green ghost and transient Siri pill
+                    float on top of any active app or phone call.
+                  </p>
+                  <div className="text-[11px] font-mono text-emerald-400 font-semibold">
+                    ✓ SYSTEM_ALERT_WINDOW
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-300 font-bold text-sm">
+                    <Zap className="w-4 h-4" />
+                    4. Background 24/7 & Boot Receiver
+                  </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Auto-starts when phone is turned on or rebooted. Exempted from battery manager
+                    sleep so she never dies in background.
+                  </p>
+                  <div className="text-[11px] font-mono text-emerald-400 font-semibold">
+                    ✓ RECEIVE_BOOT_COMPLETED & WAKE_LOCK
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="flex items-center justify-between pb-3">
+                <span className="text-xs font-mono text-zinc-400">
+                  {activeTab === 'manifest'
+                    ? 'android/app/src/main/AndroidManifest.xml'
+                    : activeTab === 'accessibility'
+                    ? 'android/app/src/main/java/com/brie/assistant/BrieAccessibilityService.kt'
+                    : activeTab === 'assistant'
+                    ? 'android/app/src/main/java/com/brie/assistant/BrieVoiceInteractionService.kt'
+                    : activeTab === 'overlay'
+                    ? 'android/app/src/main/java/com/brie/assistant/BrieOverlayManager.kt'
+                    : 'android/app/src/main/res/layout/activity_main.xml'}
+                </span>
+
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white border border-white/10 transition-colors"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-[#00FF88]" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? 'Copied!' : 'Copy Code'}
+                </button>
+              </div>
+
+              <pre className="p-4 rounded-2xl bg-black border border-white/10 font-mono text-xs text-zinc-300 overflow-x-auto leading-relaxed">
+                {getCode()}
+              </pre>
+            </div>
+          )}
         </div>
 
-        {/* Code Content */}
-        <div className="flex-1 overflow-y-auto p-5 font-mono text-xs text-zinc-300 bg-black/60 space-y-4">
-          <div className="p-4 bg-zinc-900/80 rounded-2xl border border-yellow-400/30">
-            <div className="text-[11px] font-bold text-yellow-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Ghost className="w-3.5 h-3.5" />
-              <span>{activeTab === 'xml' ? 'activity_main.xml layout structure:' : 'Voice Activation & Ghost Deactivation Routine:'}</span>
-            </div>
-            <pre className="text-emerald-400 font-bold overflow-x-auto leading-relaxed">
-{currentSnippet}
-            </pre>
-          </div>
+        {/* Footer */}
+        <div className="p-5 border-t border-white/10 bg-zinc-900/60 backdrop-blur-xl flex items-center justify-between">
+          <p className="text-xs text-zinc-400">
+            All files are synced in the project's <code className="text-[#00FF88]">android/</code>{' '}
+            directory.
+          </p>
 
-          <div className="space-y-2">
-            <p className="text-xs text-zinc-400 font-sans">
-              Key Blind-Friendly Behaviors Supported:
-            </p>
-            <ul className="list-disc list-inside space-y-1 text-xs text-zinc-300 font-sans">
-              <li>
-                <span className="font-bold text-yellow-400">Pure Voice Control:</span> User does not need to tap anything. Speaking &ldquo;Hey Brie&rdquo; activates; &ldquo;Brie sleep&rdquo; leaves like a ghost.
-              </li>
-              <li>
-                <span className="font-bold text-yellow-400">High Contrast Layout:</span> Only 3 items at top (brie_active icon, BRIE, FOR BLIND) and 2 huge 180dp buttons for ACTIVATE (#00FF88) and DEACTIVATE (#330000).
-              </li>
-              <li>
-                <span className="font-bold text-yellow-400">Full Audio &amp; Haptics:</span> Every state change is spoken out loud and confirmed with distinct tactile haptic patterns.
-              </li>
-            </ul>
-          </div>
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/10 transition-colors"
+          >
+            Done
+          </button>
         </div>
       </div>
     </div>

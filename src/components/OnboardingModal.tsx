@@ -212,7 +212,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             <div className="flex items-center gap-3 w-full max-w-md mx-auto pt-2">
               <input
                 type="text"
-                placeholder="Say or type your name (e.g. Cathy, James)"
+                placeholder="Say or type your name (e.g. Cathy, Sarah)"
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 onKeyDown={(e) => {

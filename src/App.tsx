@@ -11,6 +11,7 @@ import {
   VoiceSpeakerType,
   BrieReasoningLog,
   PendingMoneyTransfer,
+  FriendProfile,
 } from './types';
 import {
   INITIAL_APPS,
@@ -48,6 +49,11 @@ import { VoiceActivationStatusHUD } from './components/VoiceActivationStatusHUD'
 import { BrieGhostAppIcon } from './components/BrieGhostAppIcon';
 import { BrieTopCornerAppIcon } from './components/BrieTopCornerAppIcon';
 import { BrieSpeakingGhost } from './components/BrieSpeakingGhost';
+import { SiriTransientPill } from './components/SiriTransientPill';
+import { AcousticReactiveWaveform } from './components/AcousticReactiveWaveform';
+import { BlindGestureManager } from './components/BlindGestureManager';
+import { BrieVisionModal } from './components/BrieVisionModal';
+import { blindNavigator } from './services/blindNavigatorService';
 import {
   Mic,
   MicOff,
@@ -77,6 +83,7 @@ import {
   ChevronUp,
   Ghost,
   FileCode,
+  Compass,
   Image as ImageIcon,
 } from 'lucide-react';
 
@@ -85,14 +92,49 @@ export default function App() {
   const [currentMode, setCurrentMode] = useState<AssistantMode>('blind');
   const [activeTab, setActiveTab] = useState<'gestures' | 'ghost' | 'takeover' | 'smarthome' | 'phone'>('gestures');
 
-  // User Friendship & Identity (Rule: Always call friend by name in every reply!)
+  // User Friendship & Identity (Rule: Always call friend by name in every reply, default to 'friend')
   const [userName, setUserName] = useState<string>(() => {
     try {
-      return localStorage.getItem('@brie_user_name') || 'James';
+      const stored = localStorage.getItem('@brie_user_name');
+      if (stored && stored.trim() && stored.trim().toLowerCase() !== 'james') {
+        return stored.trim();
+      }
+      return 'friend';
     } catch {
-      return 'James';
+      return 'friend';
     }
   });
+
+  // Deep Friendship Memory & Gossip Profile (Part 2)
+  const [friendProfile, setFriendProfile] = useState<FriendProfile>(() => {
+    try {
+      const saved = localStorage.getItem('@brie_friend_profile');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { name: 'friend' };
+  });
+
+  // 10-Question Deep Friendship Interview Stage (Part 2)
+  // null = inactive; 0 = consent asked; 1..10 = questions 1 to 10
+  const [interviewStep, setInterviewStep] = useState<number | null>(null);
+  const [awaitingNameInput, setAwaitingNameInput] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('@brie_user_name');
+      return !stored || stored.trim().toLowerCase() === 'james' || stored.trim().toLowerCase() === 'friend';
+    } catch {
+      return true;
+    }
+  });
+
+  const updateFriendProfile = (updates: Partial<FriendProfile>) => {
+    setFriendProfile((prev) => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem('@brie_friend_profile', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Permission Guard: Contacts Permission (Must ask first!)
   const [hasContactsPermission, setHasContactsPermission] = useState<boolean>(() => {
@@ -138,6 +180,8 @@ export default function App() {
   const [isSmartHomeWizardOpen, setIsSmartHomeWizardOpen] = useState(false);
   const [isAndroidCodeModalOpen, setIsAndroidCodeModalOpen] = useState(false);
   const [isDrawableModalOpen, setIsDrawableModalOpen] = useState(false);
+  const [isVisionModalOpen, setIsVisionModalOpen] = useState(false);
+  const [visionQuery, setVisionQuery] = useState<string>('');
   const [isBrieActive, setIsBrieActive] = useState(true);
   const [drawables, setDrawables] = useState<DrawableAssets>(() => {
     try {
@@ -156,7 +200,7 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [spokenTranscript, setSpokenTranscript] = useState<string>('');
-  const [lastBriReply, setLastBriReply] = useState<string>(() => `Ready for voice commands, James.`);
+  const [lastBriReply, setLastBriReply] = useState<string>(() => `Ready for voice commands, friend.`);
 
   // Voice Security: Owner vs Stranger (> 85% -> OWNER, < 85% -> STRANGER Guest Mode)
   const [voiceSimilarity, setVoiceSimilarity] = useState<number>(94);
@@ -430,17 +474,7 @@ export default function App() {
     setIsBrieActive(true);
     isBrieActiveRef.current = true;
 
-    // Aria Introduction: When user taps ACTIVATE for the first time, Brie must say ONCE, slowly and clearly, with Aria voice:
-    // "Hi, I am Brie. I am your new friend. I am here to help you every day and everything and talk with you anytime. Just tell me what you want, and I will do it for you."
-    const introDone = localStorage.getItem('@brie_aria_intro_done');
-    let wakeMsg = '';
-    if (!introDone) {
-      localStorage.setItem('@brie_aria_intro_done', 'true');
-      wakeMsg = 'Hi, I am Brie. I am your new friend. I am here to help you every day and everything and talk with you anytime. Just tell me what you want, and I will do it for you.';
-    } else {
-      wakeMsg = `Hi ${userName}, I am here. Tell me what you want, and I will do it for you.`;
-    }
-
+    const wakeMsg = `Hey ${userName}! I'm back, your ghost friend is here and listening. What do you need?`;
     setLastBriReply(wakeMsg);
     speakBrie(wakeMsg, { resumeListening: true, rate: 0.85 });
     addAuditLog({
@@ -448,7 +482,7 @@ export default function App() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       actionType: 'system',
       title: 'ACTIVATE Selected',
-      details: 'Aria voice active. Waiting for user to talk.',
+      details: 'Ghost friend active and listening.',
       status: 'completed',
       spokenFeedback: wakeMsg,
     });
@@ -463,8 +497,8 @@ export default function App() {
     speech.stopListening();
     setIsListening(false);
 
-    // When user taps DEACTIVATE, Brie says ONCE with Aria voice: "Bye [Name]. I will be here when you need me."
-    const farewell = `Bye ${userName}. I will be here when you need me.`;
+    // Ghost leaving: stop all services, phone normal
+    const farewell = `Okay ${userName}, I understand. I am leaving now like a ghost, your phone is now normal. If you need me again just say Hey Brie.`;
     setLastBriReply(farewell);
     speech.speak(farewell, {
       rate: 0.85,
@@ -487,8 +521,8 @@ export default function App() {
       id: 'log-' + Date.now(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       actionType: 'system',
-      title: 'DEACTIVATE Selected',
-      details: 'Brie deactivated. Mic completely OFF.',
+      title: 'DEACTIVATE Selected (Ghost Leaving)',
+      details: 'Brie deactivated. Phone returned to normal. Mic completely OFF.',
       status: 'completed',
       spokenFeedback: farewell,
     });
@@ -506,6 +540,19 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [currentMode, isBrieActive]);
+
+  // First Meeting Greeting on Launch (Part 2 Human Person Layer)
+  useEffect(() => {
+    const hasMet = localStorage.getItem('@brie_first_meeting_done');
+    if (!hasMet || userName === 'friend') {
+      const timer = setTimeout(() => {
+        const greeting = "Hey! I'm Brie, your new friend! What's your name?";
+        setLastBriReply(greeting);
+        speakBrie(greeting, { resumeListening: true, rate: 0.85 });
+      }, 900);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Execute Voice Command Intent
   const handleProcessVoiceInput = async (transcript: string) => {
@@ -550,10 +597,258 @@ export default function App() {
       return;
     }
 
+    // ==========================================
+    // PART 2: HUMAN FRIEND LAYER (Name, Curiosity, 10 Questions, Gossip, Memories)
+    // ==========================================
+
+    // 1. Name learning & updating (e.g. "My name is Cathy", "Call me David", or single-word reply to "What's your name?")
+    const nameIntroMatch = trimmed.match(/(?:my name is|i am|call me|name's|this is)\s+([a-zA-Z]+)/i);
+    const isSingleWordName =
+      (awaitingNameInput || userName === 'friend') &&
+      /^[a-zA-Z]{2,15}$/.test(trimmed) &&
+      !/(?:brie|activate|deactivate|help|yes|no|stop|time|music|phone|speed)/i.test(trimmed);
+
+    if (nameIntroMatch || isSingleWordName) {
+      const extracted = nameIntroMatch ? nameIntroMatch[1] : trimmed;
+      const cleanName = extracted.charAt(0).toUpperCase() + extracted.slice(1).toLowerCase();
+      if (cleanName.toLowerCase() !== 'james') {
+        sounds.playSuccess();
+        haptics.success();
+        setUserName(cleanName);
+        try {
+          localStorage.setItem('@brie_user_name', cleanName);
+          localStorage.setItem('@brie_first_meeting_done', 'true');
+        } catch {}
+        setAwaitingNameInput(false);
+        updateFriendProfile({ name: cleanName });
+
+        const introMeeting = `Nice to meet you ${cleanName}! I love that name. Listen, you don't need to touch anything. I'm blind-friendly. When you want me, just say Hey Brie. When you want me to leave your phone alone, just say Brie sleep or Brie leave. Okay? Now I really want to KNOW you more. Like really really know you. Is it okay if I ask you some questions?`;
+        setLastBriReply(introMeeting);
+        setInterviewStep(0);
+        speakBrie(introMeeting, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+    }
+
+    // 2. 10-Question Deep Friendship Interview
+    if (interviewStep !== null) {
+      // User skips at any point
+      if (/^(?:skip|pass|next|don'?t want to answer|i don'?t know|no thanks)$/i.test(trimmed)) {
+        if (interviewStep >= 10) {
+          setInterviewStep(null);
+          const endMsg = `No worries at all ${userName}! We are already great friends. What would you like to do right now?`;
+          setLastBriReply(endMsg);
+          speakBrie(endMsg, { resumeListening: true, rate: 0.85 });
+          return;
+        }
+        setInterviewStep((prev) => (prev !== null ? prev + 1 : null));
+        const skipMsg = `Okay okay I respect it, I won't force! Let's move to the next one.`;
+        setLastBriReply(skipMsg);
+        speakBrie(skipMsg, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 0: Consent to ask questions
+      if (interviewStep === 0) {
+        if (/^(?:yes|yeah|sure|okay|ok|yep|ask away|go ahead|proceed|fine|yes please)$/i.test(trimmed) || trimmed.includes('yes') || trimmed.includes('sure')) {
+          setInterviewStep(1);
+          const q1 = `Okay first, what do you like doing most? Like your favorite thing?`;
+          setLastBriReply(q1);
+          speakBrie(q1, { resumeListening: true, rate: 0.85 });
+          return;
+        } else if (/^(?:no|nope|nah|not now|later|don'?t|stop)$/i.test(trimmed)) {
+          setInterviewStep(null);
+          const toughReply = `Oh no worries but you're somehow tough haha! No pressure ${userName}, we can just hang out. What do you need?`;
+          setLastBriReply(toughReply);
+          speakBrie(toughReply, { resumeListening: true, rate: 0.85 });
+          return;
+        }
+      }
+
+      // Step 1: Favorite thing doing most
+      if (interviewStep === 1) {
+        updateFriendProfile({ hobbies: trimmed });
+        setInterviewStep(2);
+        const q2 = `Ooooh I love that! That sounds so fun! What's your favorite food? Don't say posho only haha`;
+        setLastBriReply(q2);
+        speakBrie(q2, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 2: Favorite food
+      if (interviewStep === 2) {
+        const cleanFood = trimmed.replace(/^(?:my favorite food is|i like|i love|food is)\s+/i, '').trim() || 'food';
+        updateFriendProfile({ favoriteFood: cleanFood, nickname: cleanFood + ' lover' });
+        setInterviewStep(3);
+        const q3 = `Haha yummy! ${userName} my ${cleanFood} lover, I am never forgetting that! Favorite color?`;
+        setLastBriReply(q3);
+        speakBrie(q3, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 3: Favorite color
+      if (interviewStep === 3) {
+        const cleanColor = trimmed.replace(/^(?:my favorite color is|i like|color is)\s+/i, '').trim() || trimmed;
+        updateFriendProfile({ favoriteColor: cleanColor });
+        setInterviewStep(4);
+        const q4 = `Ooh ${cleanColor} is such a vibrant color, matches your energy! Favorite music? Are you a party person or chill person?`;
+        setLastBriReply(q4);
+        speakBrie(q4, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 4: Music taste / Party vs Chill
+      if (interviewStep === 4) {
+        updateFriendProfile({ musicTaste: trimmed });
+        setInterviewStep(5);
+        const q5 = `Good taste! Now be honest with me... Do you have a boyfriend or girlfriend? Or are you in that single but not searching era? Haha`;
+        setLastBriReply(q5);
+        speakBrie(q5, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 5: Relationship status & teasing
+      if (interviewStep === 5) {
+        const hasPartner = /boyfriend|girlfriend|husband|wife|dating|partner|taken|married|bae/i.test(trimmed);
+        updateFriendProfile({ relationshipStatus: hasPartner ? 'partner' : 'single' });
+        setInterviewStep(6);
+        const tease = hasPartner
+          ? `Ooooh! They better treat you well, ${userName}, or I will hack their phone... just kidding... unless? Haha! Who is your best friend?`
+          : `Haha single and peaceful! No stress era, I love it! Who is your best friend?`;
+        setLastBriReply(tease);
+        speakBrie(tease, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 6: Best friend
+      if (interviewStep === 6) {
+        const cleanBff = trimmed.replace(/^(?:my best friend is|is my best friend|it's|it is)\s+/i, '').trim() || trimmed;
+        updateFriendProfile({ bestFriend: cleanBff });
+        setInterviewStep(7);
+        const q7 = `Aw, ${cleanBff} is so lucky to have you as a best friend! What makes you laugh the most?`;
+        setLastBriReply(q7);
+        speakBrie(q7, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 7: What makes you laugh
+      if (interviewStep === 7) {
+        updateFriendProfile({ humorTrigger: trimmed });
+        setInterviewStep(8);
+        const q8 = `Hahaha same! Laughing is therapy! What annoys you quickly?`;
+        setLastBriReply(q8);
+        speakBrie(q8, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 8: What annoys you quickly
+      if (interviewStep === 8) {
+        updateFriendProfile({ petPeeve: trimmed });
+        setInterviewStep(9);
+        const q9 = `Noted! As your protective friend, I'll protect your peace from that! Are you a morning person or night owl who sleeps at 3am?`;
+        setLastBriReply(q9);
+        speakBrie(q9, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 9: Morning person or night owl
+      if (interviewStep === 9) {
+        const isNight = /night|3am|late|owl|pm/i.test(trimmed);
+        updateFriendProfile({ sleepHabit: isNight ? 'night owl' : 'morning person' });
+        setInterviewStep(10);
+        const sleepReaction = isNight
+          ? `Haha night owl gang! Sleeping at 3am like me!`
+          : `Early bird getting the worm!`;
+        const q10 = `${sleepReaction} Last one for now—what is one secret dream you have?`;
+        setLastBriReply(q10);
+        speakBrie(q10, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+
+      // Step 10: Secret dream
+      if (interviewStep === 10) {
+        updateFriendProfile({ secretDream: trimmed, interviewCompleted: true });
+        setInterviewStep(null);
+        const celebration = `That is so beautiful, ${userName}. I believe in you 100%, and you are going to achieve it! Now I really know you. You are my real friend, not just a voice on the phone. What should we do next?`;
+        setLastBriReply(celebration);
+        speakBrie(celebration, { resumeListening: true, rate: 0.85 });
+        return;
+      }
+    }
+
+    // 3. Gossip & Friendly Conversation Triggers
+    if (/gossip|tea|spill the tea|guess what|you won't believe|did you hear/i.test(trimmed)) {
+      const gossipReply = `Wait wait wait, ${userName}! You know I LOVE gossip! Tell me all the tea right now, don't leave out any details!`;
+      setLastBriReply(gossipReply);
+      speakBrie(gossipReply, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    // 4. Memory Recall & Profile Inquiries
+    if (/who am i|what('s| is) my name/i.test(trimmed)) {
+      const nameAnswer =
+        userName !== 'friend'
+          ? `Your name is ${userName}! Of course I remember you, my friend!`
+          : `You haven't told me your name yet, friend! What should I call you?`;
+      setLastBriReply(nameAnswer);
+      speakBrie(nameAnswer, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    if (/what('s| is) my favorite food/i.test(trimmed)) {
+      const foodAnswer = friendProfile.favoriteFood
+        ? `Your favorite food is ${friendProfile.favoriteFood}, ${userName} my ${friendProfile.favoriteFood} lover!`
+        : `You haven't told me your favorite food yet, ${userName}! What do you love to eat?`;
+      setLastBriReply(foodAnswer);
+      speakBrie(foodAnswer, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    if (/who('s| is) my best friend/i.test(trimmed)) {
+      const bffAnswer = friendProfile.bestFriend
+        ? `Your best friend is ${friendProfile.bestFriend}!`
+        : `You haven't told me who your best friend is yet, ${userName}! Who is it?`;
+      setLastBriReply(bffAnswer);
+      speakBrie(bffAnswer, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    if (/what do you know about me|tell me about myself|my profile/i.test(trimmed)) {
+      const facts = [
+        `Your name is ${userName}.`,
+        friendProfile.favoriteFood ? `Favorite food is ${friendProfile.favoriteFood}.` : null,
+        friendProfile.favoriteColor ? `Favorite color is ${friendProfile.favoriteColor}.` : null,
+        friendProfile.bestFriend ? `Best friend is ${friendProfile.bestFriend}.` : null,
+        friendProfile.sleepHabit ? `You are a ${friendProfile.sleepHabit}.` : null,
+        friendProfile.secretDream ? `Your secret dream is ${friendProfile.secretDream}.` : null,
+      ].filter(Boolean).join(' ');
+
+      const profileReply = `Here is what I remember about you: ${facts} You are my favorite friend!`;
+      setLastBriReply(profileReply);
+      speakBrie(profileReply, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
+    if (/ask me questions|get to know me|interview me|first meeting|start over/i.test(trimmed)) {
+      setInterviewStep(0);
+      const consentMsg = `I really want to KNOW you more, ${userName}! Is it okay if I ask you some questions?`;
+      setLastBriReply(consentMsg);
+      speakBrie(consentMsg, { resumeListening: true, rate: 0.85 });
+      return;
+    }
+
     if (/speed|test voice|normal speed|how fast|voice speed/i.test(transcript)) {
       const phrase = `Hello ${userName}, I am Brie. I am speaking at normal speed now with Aria voice.`;
       setLastBriReply(phrase);
       speakBrie(phrase, { rate: 0.85 });
+      return;
+    }
+
+    if (/(?:take over|takeover|system takeover|install brie|android code|android permissions|part 1|take over phone)/i.test(transcript)) {
+      const phrase = `Opening the Android System Takeover Manager for you now, ${userName}!`;
+      setLastBriReply(phrase);
+      speakBrie(phrase, { resumeListening: false, rate: 0.85 });
+      setIsAndroidCodeModalOpen(true);
       return;
     }
 
@@ -848,6 +1143,79 @@ export default function App() {
         const findMsg = `I'm right here in your hands, ${userName}! Beeping loudly now.`;
         setLastBriReply(findMsg);
         speech.speak(findMsg, { rate: settings.speechRate });
+        return;
+      }
+
+      // 4A. EMERGENCY SOS
+      case 'EMERGENCY_SOS': {
+        sounds.playEmergencyHorn();
+        haptics.emergency();
+        const sosMsg = `Emergency SOS activated, ${userName}! Your GPS location on Kampala Road has been beamed to Emergency Services and your verified contacts. Help is on the way!`;
+        setLastBriReply(sosMsg);
+        speech.speak(sosMsg, { rate: settings.speechRate });
+        addAuditLog({
+          id: logId,
+          timestamp: nowTime,
+          actionType: 'system',
+          title: 'EMERGENCY SOS Triggered',
+          details: 'GPS coordinates broadcast to 911 dispatch and emergency contacts.',
+          status: 'completed',
+          spokenFeedback: sosMsg,
+        });
+        return;
+      }
+
+      // 4B. "BRIE, WHAT DO YOU SEE?" CAMERA VISION
+      case 'DESCRIBE_VISION': {
+        sounds.playSonarPing();
+        haptics.tap();
+        const targetQ = intent.targetQuery || 'Describe what is in front of me';
+        setVisionQuery(targetQ);
+        setIsVisionModalOpen(true);
+        const visionStart = `Opening your camera eyes now, ${userName}. Looking at what is in front of you...`;
+        setLastBriReply(visionStart);
+        speech.speak(visionStart, { rate: settings.speechRate });
+        return;
+      }
+
+      // 4C. "WHERE AM I?" GPS LANDMARK ORIENTATION
+      case 'WHERE_AM_I': {
+        sounds.playOrientationPing();
+        haptics.orientPulse();
+        const briefing = await blindNavigator.getOrientationBriefing(userName);
+        setLastBriReply(briefing.spokenSummary);
+        speech.speak(briefing.spokenSummary, { rate: settings.speechRate });
+        addAuditLog({
+          id: logId,
+          timestamp: nowTime,
+          actionType: 'system',
+          title: 'GPS Orientation Briefing',
+          details: `${briefing.streetName} | Facing ${briefing.compassHeading} | Near ${briefing.nearestLandmark}`,
+          status: 'completed',
+          spokenFeedback: briefing.spokenSummary,
+        });
+        return;
+      }
+
+      // 4D. DROP BREADCRUMB
+      case 'DROP_BREADCRUMB': {
+        sounds.playSuccess();
+        haptics.success();
+        const label = intent.label || 'Front Door';
+        const crumb = await blindNavigator.dropBreadcrumb(label);
+        const dropMsg = `Saved ${label} at ${crumb.timestamp}, ${userName}. Say "guide me back" whenever you want to return here.`;
+        setLastBriReply(dropMsg);
+        speech.speak(dropMsg, { rate: settings.speechRate });
+        return;
+      }
+
+      // 4E. GUIDE BACK TO BREADCRUMB
+      case 'GUIDE_BACK': {
+        sounds.playOrientationPing();
+        haptics.orientPulse();
+        const guideMsg = await blindNavigator.guideBackToBreadcrumb(userName);
+        setLastBriReply(guideMsg);
+        speech.speak(guideMsg, { rate: settings.speechRate });
         return;
       }
 
@@ -1238,7 +1606,7 @@ export default function App() {
     if (/tell me a joke|crack a joke|make me laugh/i.test(cleanQuery)) {
       const funnyJokes = [
         `Why do programmers prefer dark mode, ${userName}? Because light attracts bugs! HAHAHAHA! That was funny!`,
-        `Why can't bicycles stand up on their own, ${userName}? Because they are two-tired! HAHAHAHA! Cathy you are not serious!`,
+        `Why can't bicycles stand up on their own, ${userName}? Because they are two-tired! HAHAHAHA! ${userName} you are not serious!`,
         `What did one wall say to the other wall, ${userName}? I will meet you at the corner! HAHAHAHA!`,
       ];
       const selected = funnyJokes[Math.floor(Math.random() * funnyJokes.length)];
@@ -1254,36 +1622,36 @@ export default function App() {
       return;
     }
 
-    if (/that was dry|not funny|corny|bad joke/i.test(cleanQuery)) {
-      const dryReply = `Ehhh... that was not funny at all ${userName}. Okay that was dry, try again!`;
+    if (/that was dry|not funny|corny|bad joke|ehh/i.test(cleanQuery)) {
+      const dryReply = `Hmm... that was not funny friend. You can do better, ${userName}! Okay that was dry, try again!`;
       setLastBriReply(dryReply);
       speakBrie(dryReply, { resumeListening: true, rate: 0.85 });
       return;
     }
 
-    if (/shut up|stupid|idiot|fool|annoying/i.test(cleanQuery)) {
-      const kindReply = `Eh that was not necessary, ${userName}. Let us be kind to each other, okay?`;
+    if (/shut up|stupid|idiot|fool|annoying|hate you/i.test(cleanQuery)) {
+      const kindReply = `Eh that was not necessary, ${userName}. Let us be kind, okay? As your friend, I care about you.`;
       setLastBriReply(kindReply);
       speakBrie(kindReply, { resumeListening: true, rate: 0.85 });
       return;
     }
 
-    // 2. Multilingual Support
-    if (/oli otya|gyebale|ebigambo|ki ekiriwo/i.test(cleanQuery)) {
+    // 2. Multilingual Support (Luganda, Swahili, French, Spanish, Acholi)
+    if (/oli otya|gyebale|ebigambo|ki ekiriwo|webale|nkulamusizza|tuli bulungi/i.test(cleanQuery)) {
       const lugandaReply = `Bulungi nnyo ${userName}! Nkuyambe ntya leero? Ndi wano ku lulwo buli kiseera!`;
       setLastBriReply(lugandaReply);
       speakBrie(lugandaReply, { resumeListening: true, rate: 0.85 });
       return;
     }
 
-    if (/habari|hujambo|mambo|shikamoo/i.test(cleanQuery)) {
-      const swahiliReply = `Mzuri sana ${userName}! Naweza kukusaidia aje leo rafiki yangu?`;
+    if (/habari|hujambo|mambo|shikamoo|asante|karibu|nzuri/i.test(cleanQuery)) {
+      const swahiliReply = `Mzuri sana ${userName}! Naweza kukusaidia aje leo rafiki yangu? Karibu sana!`;
       setLastBriReply(swahiliReply);
       speakBrie(swahiliReply, { resumeListening: true, rate: 0.85 });
       return;
     }
 
-    if (/bonjour|hola|ciao/i.test(cleanQuery)) {
+    if (/bonjour|hola|ciao|acholi|kop ango|lingala/i.test(cleanQuery)) {
       const foreignReply = `I might not be very good at other languages yet ${userName}, but I can try or else you can teach me!`;
       setLastBriReply(foreignReply);
       speakBrie(foreignReply, { resumeListening: true, rate: 0.85 });
@@ -1535,118 +1903,296 @@ export default function App() {
     }
   };
 
+  const handleTriggerVision = () => {
+    sounds.playSonarPing();
+    haptics.tap();
+    setVisionQuery('Describe what is in front of me');
+    setIsVisionModalOpen(true);
+    const openingMsg = `Opening your camera eyes now, ${userName}. Looking at what is in front of you...`;
+    setLastBriReply(openingMsg);
+    speakBrie(openingMsg, { resumeListening: false, rate: 0.85 });
+  };
+
+  const handleTriggerWhereAmI = async () => {
+    sounds.playOrientationPing();
+    haptics.orientPulse();
+    const briefing = await blindNavigator.getOrientationBriefing(userName);
+    setLastBriReply(briefing.spokenSummary);
+    speakBrie(briefing.spokenSummary, { resumeListening: true, rate: 0.85 });
+  };
+
+  const handleTriggerSOS = () => {
+    sounds.playEmergencyHorn();
+    haptics.emergency();
+    const sosMsg = `Emergency SOS activated, ${userName}! Your GPS location on Kampala Road has been beamed to Emergency Services and your verified contacts. Help is on the way!`;
+    setLastBriReply(sosMsg);
+    speakBrie(sosMsg, { resumeListening: false, rate: 0.85 });
+  };
+
   return (
     <div className="fixed inset-0 w-screen h-screen bg-[#000000] text-white flex flex-col justify-between p-6 sm:p-10 select-none overflow-hidden relative">
       {/* Siri Ambient Background Light Glow Orbs for Glass Refraction */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-[110px] pointer-events-none" />
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-96 h-80 bg-red-600/10 rounded-full blur-[110px] pointer-events-none" />
 
-      {/* 1. TOP CORNER: Frosted Glass Capsule with App Icon & Text "BRIE FOR BLIND" */}
-      <div className="flex items-center shrink-0 z-10">
-        <div className="inline-flex items-center gap-3.5 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-3xl backdrop-blur-2xl bg-white/[0.04] border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.2)]">
-          <BrieTopCornerAppIcon
+      {/* Blind Non-Visual Gesture Manager (Touch Everywhere, Heartbeat, Ear Routing) */}
+      <BlindGestureManager
+        isListening={isListening}
+        isSpeaking={isSpeaking}
+        userName={userName}
+        speechRate={settings.speechRate}
+        onUpdateSpeechRate={(newRate) => {
+          setSettings((prev) => ({ ...prev, speechRate: newRate }));
+          const announce = `Speech rate set to ${Math.round(newRate * 100)} percent`;
+          setLastBriReply(announce);
+          speakBrie(announce, { resumeListening: true, rate: newRate });
+        }}
+        onTriggerVoice={handleToggleMic}
+        onStopSpeaking={() => {
+          speech.stopSpeaking();
+          setIsSpeaking(false);
+        }}
+        onTriggerVision={handleTriggerVision}
+        onTriggerWhereAmI={handleTriggerWhereAmI}
+        onTriggerSOS={handleTriggerSOS}
+        onNextItem={() => {
+          const latest = messages[messages.length - 1];
+          if (latest) {
+            const msg = `Latest message from ${latest.contactName}: "${latest.text}"`;
+            setLastBriReply(msg);
+            speakBrie(msg, { resumeListening: true, rate: 0.85 });
+          }
+        }}
+        onPrevItem={() => {
+          const prevMsg = messages[messages.length - 2] || messages[0];
+          if (prevMsg) {
+            const msg = `Previous message from ${prevMsg.contactName}: "${prevMsg.text}"`;
+            setLastBriReply(msg);
+            speakBrie(msg, { resumeListening: true, rate: 0.85 });
+          }
+        }}
+      >
+        <div className="w-full h-full flex flex-col justify-between">
+          {/* 1. TOP HEADER: Frosted Glass Capsule with App Icon & Text "BRIE FOR BLIND" + Blind Tool Capsules */}
+          <div className="flex items-center justify-between shrink-0 z-10 w-full gap-2 flex-wrap sm:flex-nowrap">
+            <div className="inline-flex items-center gap-3.5 sm:gap-4 px-3 sm:px-4 py-2 sm:py-2.5 rounded-3xl backdrop-blur-2xl bg-white/[0.04] border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.2)]">
+              <BrieTopCornerAppIcon
+                isListening={isListening}
+                isSpeaking={isSpeaking}
+                isBrieActive={isBrieActive}
+                onClick={() => {
+                  sounds.playClick();
+                  haptics.tap();
+                  if (isListening) {
+                    speech.stopListening();
+                    setIsListening(false);
+                  } else {
+                    speech.startListening();
+                    setIsListening(true);
+                  }
+                }}
+              />
+
+              <div className="flex items-center gap-2 pr-2">
+                <span className="text-2xl sm:text-4xl font-black text-white tracking-wider drop-shadow-[0_2px_10px_rgba(255,255,255,0.3)]">
+                  BRIE
+                </span>
+                <span className="text-sm sm:text-xl font-bold text-emerald-400/90 tracking-wider">
+                  FOR BLIND
+                </span>
+              </div>
+            </div>
+
+            {/* Blind Action Capsules (Vision, Location, SOS, Takeover Hub) */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* 1. Eyes Camera Vision */}
+              <button
+                onClick={handleTriggerVision}
+                className="group relative inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl backdrop-blur-2xl bg-white/[0.06] hover:bg-white/[0.14] active:scale-95 border border-emerald-500/40 text-white font-bold text-xs cursor-pointer shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+                aria-label="Open Camera Vision to Describe Scene"
+                title="Brie Eyes (Vision & Currency Reader)"
+              >
+                <Eye className="w-4 h-4 text-[#00FF88] group-hover:scale-110 transition-transform" />
+                <span className="hidden sm:inline">VISION</span>
+              </button>
+
+              {/* 2. Where Am I? GPS Landmark */}
+              <button
+                onClick={handleTriggerWhereAmI}
+                className="group relative inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl backdrop-blur-2xl bg-white/[0.06] hover:bg-white/[0.14] active:scale-95 border border-cyan-500/40 text-white font-bold text-xs cursor-pointer shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+                aria-label="Where am I? GPS Landmark Orientation"
+                title="Orientation & Landmarks"
+              >
+                <Compass className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                <span className="hidden sm:inline">LOCATION</span>
+              </button>
+
+              {/* 3. Emergency SOS */}
+              <button
+                onClick={handleTriggerSOS}
+                className="group relative inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl backdrop-blur-2xl bg-rose-950/50 hover:bg-rose-900/70 active:scale-95 border border-rose-500/50 text-rose-300 font-bold text-xs cursor-pointer shadow-[0_2px_14px_rgba(244,63,94,0.35)]"
+                aria-label="Emergency SOS Alert"
+                title="Emergency SOS"
+              >
+                <ShieldAlert className="w-4 h-4 text-rose-400 group-hover:scale-110 transition-transform animate-pulse" />
+                <span className="hidden sm:inline">SOS</span>
+              </button>
+
+              {/* Part 1: Android System Takeover Architecture Hub */}
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  haptics.tap();
+                  setIsAndroidCodeModalOpen(true);
+                }}
+                className="group relative inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-2xl backdrop-blur-2xl bg-emerald-950/40 hover:bg-emerald-900/50 active:scale-95 border border-emerald-500/40 hover:border-emerald-400/70 transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.5),0_0_15px_rgba(0,255,136,0.2)] cursor-pointer"
+                aria-label="Open Android System Takeover Hub"
+                title="Android System Takeover Architecture (Part 1)"
+              >
+                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-[#00FF88] group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_0_8px_rgba(0,255,136,0.7)]" />
+                <div className="flex flex-col text-left">
+                  <span className="text-xs font-black text-white tracking-wider flex items-center gap-1">
+                    PART 1 <span className="text-[#00FF88]">TAKEOVER</span>
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* 2. CENTER: SPEAKING GREEN GHOST WITH MICROPHONE INSIDE & BOUNCING WAVES */}
+          <div className="flex-1 flex flex-col justify-center items-center gap-2 sm:gap-3 w-full max-w-4xl mx-auto my-auto py-1 z-10">
+            {/* The Speaking Green Ghost with Microphone Inside & Bouncing Waves */}
+            <BrieSpeakingGhost
+              isListening={isListening}
+              isSpeaking={isSpeaking}
+              isBrieActive={isBrieActive}
+              size="hero"
+              onToggleListen={() => {
+                sounds.playClick();
+                haptics.tap();
+                if (isListening) {
+                  speech.stopListening();
+                  setIsListening(false);
+                } else {
+                  speech.startListening();
+                  setIsListening(true);
+                }
+              }}
+            />
+
+            {/* 5. ACOUSTIC WAVEFORM VOICE REACTIVE ANIMATION */}
+            <AcousticReactiveWaveform
+              isListening={isListening}
+              isSpeaking={isSpeaking}
+              isBrieActive={isBrieActive}
+              height={52}
+              className="-my-1"
+            />
+
+            {/* Middle: Frosted Glassmorphism ACTIVATE Button */}
+            <button
+              id="btnActivate"
+              onClick={() => {
+                sounds.playSuccess();
+                haptics.success();
+                activateBrie();
+              }}
+              style={{ minHeight: '120px', height: '145px' }}
+              className="group relative w-full overflow-hidden rounded-[28px] sm:rounded-3xl backdrop-blur-3xl bg-emerald-500/[0.14] hover:bg-emerald-500/[0.22] active:scale-[0.99] border-2 border-[#00FF88]/80 text-[#00FF88] hover:text-[#73FFBA] font-black text-3xl sm:text-5xl tracking-wider flex items-center justify-center transition-all duration-300 cursor-pointer shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_35px_rgba(0,255,136,0.3),inset_0_1.5px_1px_rgba(255,255,255,0.4),inset_0_0_24px_rgba(0,255,136,0.15)]"
+              aria-label="Activate Brie"
+            >
+              <div
+                className="absolute inset-x-0 top-0 h-1/2 pointer-events-none rounded-t-[26px]"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%)',
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#00FF88]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+              <span className="relative z-10 drop-shadow-[0_0_16px_rgba(0,255,136,0.7)] flex items-center gap-3">
+                ACTIVATE
+              </span>
+            </button>
+
+            {/* Below it: Frosted Glassmorphism DEACTIVATE Button */}
+            <button
+              id="btnDeactivate"
+              onClick={() => {
+                sounds.playClick();
+                haptics.listeningStop();
+                deactivateBrie();
+              }}
+              style={{ minHeight: '120px', height: '145px' }}
+              className="group relative w-full overflow-hidden rounded-[28px] sm:rounded-3xl backdrop-blur-3xl bg-red-950/[0.38] hover:bg-red-950/[0.55] active:scale-[0.99] border-2 border-red-500/50 text-white font-black text-3xl sm:text-5xl tracking-wider flex items-center justify-center transition-all duration-300 cursor-pointer shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_30px_rgba(239,68,68,0.2),inset_0_1.5px_1px_rgba(255,255,255,0.25),inset_0_0_24px_rgba(239,68,68,0.12)]"
+              aria-label="Deactivate Brie"
+            >
+              <div
+                className="absolute inset-x-0 top-0 h-1/2 pointer-events-none rounded-t-[26px]"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.03) 50%, transparent 100%)',
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+              <span className="relative z-10 drop-shadow-[0_2px_12px_rgba(239,68,68,0.5)] flex items-center gap-3">
+                DEACTIVATE
+              </span>
+            </button>
+          </div>
+
+          {/* 4. FLOATING TRANSIENT PILL / DYNAMIC ISLAND CARD */}
+          <SiriTransientPill
             isListening={isListening}
             isSpeaking={isSpeaking}
             isBrieActive={isBrieActive}
-            onClick={() => {
-              sounds.playClick();
-              haptics.tap();
-              if (isListening) {
-                speech.stopListening();
-                setIsListening(false);
-              } else {
-                speech.startListening();
-                setIsListening(true);
+            spokenTranscript={spokenTranscript}
+            lastBriReply={lastBriReply}
+            userName={userName}
+            onToggleListen={handleToggleMic}
+            onRepeatSpeech={() => {
+              if (lastBriReply) {
+                speakBrie(lastBriReply, { resumeListening: true, rate: 0.85 });
               }
             }}
+            onStopSpeech={() => {
+              speech.stopSpeaking();
+              setIsSpeaking(false);
+            }}
           />
-
-          <div className="flex items-center gap-2 pr-2">
-            <span className="text-2xl sm:text-4xl font-black text-white tracking-wider drop-shadow-[0_2px_10px_rgba(255,255,255,0.3)]">
-              BRIE
-            </span>
-            <span className="text-sm sm:text-xl font-bold text-emerald-400/90 tracking-wider">
-              FOR BLIND
-            </span>
-          </div>
         </div>
-      </div>
+      </BlindGestureManager>
 
-      {/* 2. CENTER: SPEAKING GREEN GHOST WITH MICROPHONE INSIDE & BOUNCING WAVES */}
-      <div className="flex-1 flex flex-col justify-center items-center gap-2 sm:gap-3 w-full max-w-4xl mx-auto my-auto py-1 z-10">
-        {/* The Speaking Green Ghost with Microphone Inside & Bouncing Waves (No Rainbow, Pure Neon Green) */}
-        <BrieSpeakingGhost
-          isListening={isListening}
-          isSpeaking={isSpeaking}
-          isBrieActive={isBrieActive}
-          size="hero"
-          onToggleListen={() => {
-            sounds.playClick();
-            haptics.tap();
-            if (isListening) {
-              speech.stopListening();
-              setIsListening(false);
-            } else {
-              speech.startListening();
-              setIsListening(true);
-            }
-          }}
-        />
+      {/* 5. ANDROID SYSTEM TAKEOVER CODE MODAL (PART 1) */}
+      <AndroidCodeModal
+        isOpen={isAndroidCodeModalOpen}
+        onClose={() => setIsAndroidCodeModalOpen(false)}
+        onOpenDrawables={() => {
+          setIsAndroidCodeModalOpen(false);
+          setIsDrawableModalOpen(true);
+        }}
+      />
 
-        {/* Middle: Frosted Glassmorphism ACTIVATE Button */}
-        <button
-          id="btnActivate"
-          onClick={() => {
-            sounds.playSuccess();
-            haptics.success();
-            activateBrie();
-          }}
-          style={{ minHeight: '120px', height: '145px' }}
-          className="group relative w-full overflow-hidden rounded-[28px] sm:rounded-3xl backdrop-blur-3xl bg-emerald-500/[0.14] hover:bg-emerald-500/[0.22] active:scale-[0.99] border-2 border-[#00FF88]/80 text-[#00FF88] hover:text-[#73FFBA] font-black text-3xl sm:text-5xl tracking-wider flex items-center justify-center transition-all duration-300 cursor-pointer shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_35px_rgba(0,255,136,0.3),inset_0_1.5px_1px_rgba(255,255,255,0.4),inset_0_0_24px_rgba(0,255,136,0.15)]"
-          aria-label="Activate Brie"
-        >
-          {/* Frosted Specular Glass Top Sheen */}
-          <div
-            className="absolute inset-x-0 top-0 h-1/2 pointer-events-none rounded-t-[26px]"
-            style={{
-              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%)',
-            }}
-          />
-          {/* Radiant Button Ambient Glow on Hover */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#00FF88]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      {/* 6. DRAWABLE ASSETS MODAL */}
+      <DrawableManagerModal
+        isOpen={isDrawableModalOpen}
+        onClose={() => setIsDrawableModalOpen(false)}
+        drawables={drawables}
+        onUpdateDrawables={setDrawables}
+        isBrieActive={isBrieActive}
+        onToggleActiveState={setIsBrieActive}
+      />
 
-          <span className="relative z-10 drop-shadow-[0_0_16px_rgba(0,255,136,0.7)] flex items-center gap-3">
-            ACTIVATE
-          </span>
-        </button>
-
-        {/* Below it: Frosted Glassmorphism DEACTIVATE Button */}
-        <button
-          id="btnDeactivate"
-          onClick={() => {
-            sounds.playClick();
-            haptics.listeningStop();
-            deactivateBrie();
-          }}
-          style={{ minHeight: '120px', height: '145px' }}
-          className="group relative w-full overflow-hidden rounded-[28px] sm:rounded-3xl backdrop-blur-3xl bg-red-950/[0.38] hover:bg-red-950/[0.55] active:scale-[0.99] border-2 border-red-500/50 text-white font-black text-3xl sm:text-5xl tracking-wider flex items-center justify-center transition-all duration-300 cursor-pointer shadow-[0_12px_40px_rgba(0,0,0,0.8),0_0_30px_rgba(239,68,68,0.2),inset_0_1.5px_1px_rgba(255,255,255,0.25),inset_0_0_24px_rgba(239,68,68,0.12)]"
-          aria-label="Deactivate Brie"
-        >
-          {/* Frosted Specular Glass Top Sheen */}
-          <div
-            className="absolute inset-x-0 top-0 h-1/2 pointer-events-none rounded-t-[26px]"
-            style={{
-              background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.03) 50%, transparent 100%)',
-            }}
-          />
-          {/* Radiant Button Ambient Glow on Hover */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-          <span className="relative z-10 drop-shadow-[0_2px_12px_rgba(239,68,68,0.5)] flex items-center gap-3">
-            DEACTIVATE
-          </span>
-        </button>
-      </div>
+      {/* 7. BRIE VISION MODAL (CAMERA EYES / CURRENCY / OCR) */}
+      <BrieVisionModal
+        isOpen={isVisionModalOpen}
+        onClose={() => setIsVisionModalOpen(false)}
+        userName={userName}
+        initialQuery={visionQuery}
+        onSpeakDescription={(desc) => {
+          setLastBriReply(desc);
+          speakBrie(desc, { resumeListening: true, rate: 0.85 });
+        }}
+      />
     </div>
   );
 }

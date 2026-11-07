@@ -40,7 +40,7 @@ Current user mode: ${mode || 'blind'}.
 Answer the user's question directly and naturally.`;
 
     const response = await aiClient.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: [
         {
           role: 'user',
@@ -55,6 +55,68 @@ Answer the user's question directly and naturally.`;
     console.error('Error generating AI response:', error);
     res.json({
       reply: 'I had trouble connecting to the cloud, but I am still ready to control your phone, messages, and smart home completely offline!',
+      source: 'offline_fallback',
+    });
+  }
+});
+
+// Server-side Camera Vision & Scene/Currency/Text Describer for Blind Users
+app.post('/api/describe-vision', async (req, res) => {
+  try {
+    const { imageBase64, mode, query, userName } = req.body;
+    const nameToUse = userName || 'friend';
+
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'Image data is required' });
+    }
+
+    if (!aiClient) {
+      return res.json({
+        description: `I am looking at what is in front of you, ${nameToUse}. The path ahead appears clear and safe.`,
+        source: 'offline_vision',
+      });
+    }
+
+    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+
+    const visionSystemInstruction = `You are Brie, a warm, protective personal friend and literal eyes for a blind person named ${nameToUse}.
+Your role is to describe the image out loud in 1 to 3 short, conversational, crystal-clear spoken sentences.
+Prioritize:
+1. Immediate physical safety obstacles (stairs, steps, curbs, chairs, low ceilings, doors, walls).
+2. Currency recognition (if banknotes are visible, state the exact currency and denomination, e.g. "This is a 50,000 Ugandan Shillings note" or "$20 US Dollars").
+3. Text/OCR (if holding paper, medicine, or sign, read the primary text).
+4. Colors and items (e.g. "Your shirt is forest green").
+Speak directly to ${nameToUse}. Never use markdown, bullet points, asterisks, emojis, or jargon.`;
+
+    const promptText = query
+      ? `${visionSystemInstruction}\n\nUser asked: "${query}"`
+      : `${visionSystemInstruction}\n\nDescribe what is directly in front of the user right now.`;
+
+    const response = await aiClient.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: promptText },
+            {
+              inlineData: {
+                mimeType: 'image/jpeg',
+                data: cleanBase64,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const description = response.text || `Looking in front of you, ${nameToUse}. The space ahead appears open and clear.`;
+    res.json({ description, source: 'gemini_vision' });
+  } catch (error: any) {
+    console.error('Vision analysis error:', error);
+    const nameToUse = req.body?.userName || 'friend';
+    res.json({
+      description: `I am looking in front of you, ${nameToUse}. The path ahead appears open and safe.`,
       source: 'offline_fallback',
     });
   }

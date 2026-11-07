@@ -109,9 +109,39 @@ export function parseVoiceCommand(rawText: string, wakeWords: string[] = ['hey b
     return { type: 'FIND_PHONE' };
   }
 
-  // Luganda Emergency SOS ("ndi bubi", "yamba", "nyamba")
-  if (/^(?:ndi bubi|yamba|nyamba|help me emergency)$/i.test(cleaned)) {
-    return { type: 'CALL_PHONE', contactOrNumber: 'Emergency SOS (911)' };
+  // ==========================================
+  // 5A. EMERGENCY SOS (Triple-click / voice command)
+  // ==========================================
+  if (/(?:emergency\s+sos|sos|help\s+me\s+emergency|danger|ndi\s+bubi|yamba|nyamba)/i.test(cleaned)) {
+    return { type: 'EMERGENCY_SOS' };
+  }
+
+  // ==========================================
+  // 5B. CAMERA VISION / "BRIE, WHAT DO YOU SEE?"
+  // ==========================================
+  if (
+    /(?:what\s+(?:do\s+you\s+see|is\s+in\s+front\s+of\s+me|is\s+this|am\s+i\s+looking\s+at)|describe\s+(?:the\s+)?scene|read\s+(?:this\s+)?(?:money|currency|banknote|shilling|cash|dollar)|read\s+(?:this\s+)?(?:document|paper|label|text)|what\s+color\s+is|look\s+around|open\s+camera|brie\s+vision)/i.test(
+      cleaned
+    )
+  ) {
+    return { type: 'DESCRIBE_VISION', targetQuery: cleaned };
+  }
+
+  // ==========================================
+  // 5C. "WHERE AM I?" & GPS ORIENTATION
+  // ==========================================
+  if (/(?:where\s+am\s+i|what\s+is\s+my\s+location|where\s+are\s+we|which\s+direction|compass|orientation)/i.test(cleaned)) {
+    return { type: 'WHERE_AM_I' };
+  }
+
+  if (/(?:drop\s+breadcrumb|remember\s+(?:this\s+)?(?:place|location|spot|front\s+door)|save\s+breadcrumb)/i.test(cleaned)) {
+    const labelMatch = cleaned.match(/(?:remember|save)\s+(?:my\s+)?([a-z0-9\s]+?)(?:\s+location|\s+spot)?$/i);
+    const label = labelMatch ? labelMatch[1].trim() : 'Front Door';
+    return { type: 'DROP_BREADCRUMB', label };
+  }
+
+  if (/(?:guide\s+me\s+(?:back|home)|take\s+me\s+(?:back|home)|where\s+is\s+my\s+breadcrumb|return\s+home)/i.test(cleaned)) {
+    return { type: 'GUIDE_BACK' };
   }
 
   // ==========================================

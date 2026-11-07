@@ -70,6 +70,27 @@ class HapticsService {
   public callPulse() {
     this.vibrate([400, 200, 400]);
   }
+
+  /**
+   * Continuous gentle listening beacon heartbeat pulse
+   */
+  public heartbeatPulse() {
+    this.vibrate([20, 80, 20]);
+  }
+
+  /**
+   * Swift swipe tactile confirmation
+   */
+  public gestureSwipe() {
+    this.vibrate(30);
+  }
+
+  /**
+   * Orientation & compass lock pulse
+   */
+  public orientPulse() {
+    this.vibrate([50, 40, 50, 40, 100]);
+  }
 }
 
 export const haptics = new HapticsService();

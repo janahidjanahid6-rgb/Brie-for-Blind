@@ -52,7 +52,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   const testVoice = (rate: number = 1.0, pitch: number = 1.0, voiceURI: string = '') => {
-    speech.speak('Hello James, I am Brie. I am speaking at normal speed now.', {
+    speech.speak('Hello friend, I am Brie. I am speaking at normal speed now.', {
       rate: 1.0,
       pitch: 1.0,
       volume: 1.0,

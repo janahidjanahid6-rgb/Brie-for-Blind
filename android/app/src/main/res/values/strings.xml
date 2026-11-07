@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Brie</string>
+    <string name="accessibility_service_label">Brie Autonomous Blind Assistant</string>
+    <string name="accessibility_service_description">Brie operates your phone eyes-free: reads screens aloud, presses buttons on your behalf, and assists blind and low-vision users autonomously.</string>
+</resources>

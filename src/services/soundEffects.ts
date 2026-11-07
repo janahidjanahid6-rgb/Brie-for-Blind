@@ -251,6 +251,134 @@ class SoundEffectsService {
       },
     };
   }
+
+  /**
+   * Listening Beacon heartbeat pulse (gentle, warm low-frequency thud)
+   * Gives blind user confidence that mic is still actively open.
+   */
+  public playHeartbeatPulse() {
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(65, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.09);
+  }
+
+  /**
+   * Radar Sweep Earcon: Indicates vision/AI analysis is actively working
+   */
+  public playRadarSweep() {
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.exponentialRampToValueAtTime(1400, now + 0.22);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.26);
+  }
+
+  /**
+   * Camera Shutter Snap: Auditory feedback when taking snapshot for blind vision
+   */
+  public playCameraShutter() {
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    // High snap click
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1800, now);
+    osc.frequency.exponentialRampToValueAtTime(300, now + 0.04);
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.05);
+  }
+
+  /**
+   * Emergency SOS Alert Horn
+   */
+  public playEmergencyHorn() {
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.linearRampToValueAtTime(600, now + 0.25);
+    osc.frequency.linearRampToValueAtTime(800, now + 0.5);
+
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.linearRampToValueAtTime(0.3, now + 0.45);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.6);
+  }
+
+  /**
+   * Spatial Orientation / Compass Ping
+   */
+  public playOrientationPing() {
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const freqs = [587.33, 880, 1174.66]; // D5, A5, D6
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+
+      gain.gain.setValueAtTime(0, now + idx * 0.06);
+      gain.gain.linearRampToValueAtTime(0.14, now + idx * 0.06 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.25);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + idx * 0.06);
+      osc.stop(now + idx * 0.06 + 0.28);
+    });
+  }
 }
 
 export const sounds = new SoundEffectsService();

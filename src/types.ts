@@ -179,6 +179,22 @@ export interface PendingMoneyTransfer {
   initiatedAt: string;
 }
 
+export interface FriendProfile {
+  name: string;
+  favoriteFood?: string;
+  favoriteColor?: string;
+  hobbies?: string;
+  musicTaste?: string;
+  relationshipStatus?: string;
+  bestFriend?: string;
+  humorTrigger?: string;
+  petPeeve?: string;
+  sleepHabit?: string;
+  secretDream?: string;
+  nickname?: string;
+  interviewCompleted?: boolean;
+}
+
 export type ParsedIntent =
   | { type: 'DOWNLOAD_APP'; appName: string }
   | { type: 'OPEN_APP'; appName: string }
@@ -209,4 +225,9 @@ export type ParsedIntent =
   | { type: 'ACTIVATE_BRIE' }
   | { type: 'DEACTIVATE_BRIE' }
   | { type: 'HELP' }
+  | { type: 'DESCRIBE_VISION'; targetQuery?: string }
+  | { type: 'WHERE_AM_I' }
+  | { type: 'DROP_BREADCRUMB'; label?: string }
+  | { type: 'GUIDE_BACK' }
+  | { type: 'EMERGENCY_SOS' }
   | { type: 'CONVERSATIONAL'; query: string };

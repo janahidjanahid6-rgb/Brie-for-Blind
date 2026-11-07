@@ -42,7 +42,11 @@ import java.util.Locale
  */
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
-    private val TAG = "BrieAssistant"
+    companion object {
+        private const val TAG = "BrieAssistant"
+        var instance: MainActivity? = null
+            private set
+    }
     private val PERMISSION_REQUEST_CODE = 101
 
     private lateinit var tts: TextToSpeech
@@ -93,6 +97,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instance = this
         setContentView(R.layout.activity_main)
 
         // Initialize Preferences and Hardware
